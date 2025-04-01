@@ -491,6 +491,7 @@ class FixedTestPrioritizationEnv(TestPrioritizationEnv):
         
         return apfd, apfdc, total_failures
 
+#New environments below for pairwise, listwise, and pointwise (Above environment will deprecate when used below)
 
 class ListwiseTestPrioritizationEnv(gym.Env):
     """Environment for listwise test case prioritization using RL."""
@@ -725,6 +726,509 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         # Calculate APFD
         if total_failures == 0:
             apfd = 1.0  # No failures, so perfect score
+        else:
+            apfd = 1 - (sum(failures) / (total_tests * total_failures)) + (1 / (2 * total_tests))
+        
+        # Calculate APFDC
+        if total_failures == 0:
+            apfdc = 1.0
+        else:
+            # Get test costs
+            costs = []
+            for test_idx in test_order:
+                cost = self.test_data.iloc[test_idx].get('REC_RecentAvgExeTime', 1.0)
+                if pd.isna(cost):
+                    cost = 1.0
+                costs.append(cost)
+                
+            total_cost = sum(costs)
+            
+            # Calculate APFDC using costs
+            fault_detection_cost = 0
+            for i in failures:
+                fault_detection_cost += sum(costs[:i+1])
+                
+            if total_cost == 0:
+                apfdc = 1.0
+            else:
+                apfdc = 1 - (fault_detection_cost / (total_cost * total_failures)) + (costs[0] / (2 * total_cost))
+        
+        return apfd, apfdc, total_failures
+    
+    def get_build_metrics(self):
+        """Get metrics for all builds"""
+        return self.build_metrics
+
+
+class PairwiseTestPrioritizationEnv(gym.Env):
+    """Environment for pairwise test case prioritization using RL."""
+    def __init__(self, build_data, feature_columns=None, fail_value=0, pass_values=[1, 2]):
+        """Initialize the environment."""
+        self.build_data = build_data
+        self.current_build = None
+        self.fail_value = fail_value
+        self.pass_values = pass_values
+        
+        # Find the maximum number of tests in any build
+        self.max_tests = max(len(tests) for tests in build_data.values())
+        
+        # Define feature columns similar to listwise env
+        if feature_columns is None:
+            sample_build_id = list(build_data.keys())[0]
+            all_columns = build_data[sample_build_id].columns.tolist()
+            self.feature_columns = [col for col in all_columns if 
+                                col.startswith("REC") or 
+                                col.startswith("TES_PRO") or 
+                                col.startswith("TES_COM")]
+            exclude_columns = ['Build', 'Test', 'Verdict', 'Duration']
+            self.feature_columns = [col for col in self.feature_columns if col not in exclude_columns]
+        else:
+            self.feature_columns = feature_columns
+            
+        self.feature_dim = len(self.feature_columns)
+
+        # Compute statistics for normalization
+        self.feature_means = {}
+        self.feature_stds = {}
+        self.normalize_features = True
+        if self.normalize_features:
+            # Similar normalization setup as in listwise env
+            all_features = []
+            for build_id, df in self.build_data.items():
+                for col in self.feature_columns:
+                    if col in df.columns:
+                        values = df[col].values
+                        all_features.append(values)
+            
+            all_features = np.concatenate(all_features)
+            self.feature_means = {col: np.mean(all_features) for col in self.feature_columns}
+            self.feature_stds = {col: np.std(all_features) + 1e-5 for col in self.feature_columns}
+        
+        # Define observation space - pairwise compares two tests
+        self.observation_space = spaces.Box(
+            low=-float('inf'), high=float('inf'),
+            shape=(self.feature_dim * 2,)  # 2 tests being compared
+        )
+        
+        # Define action space - binary choice (which test is better)
+        self.action_space = spaces.Discrete(2)
+        
+        # Initialize tracking variables
+        self.test_cases = None
+        self.current_pair = None
+        self.sorted_test_cases_vector = None
+        self.build_metrics = {}
+    
+    def is_test_failed(self, verdict):
+        """Check if a test has failed based on its verdict value"""
+        if isinstance(verdict, (int, float, np.integer, np.floating)):
+            return float(verdict) == float(self.fail_value)
+        elif isinstance(verdict, str):
+            return verdict == str(self.fail_value)
+        else:
+            return str(verdict) == str(self.fail_value)
+    
+    def _extract_features(self, test_idx):
+        """Extract normalized features for a test case"""
+        test = self.test_data.iloc[test_idx]
+        features = []
+        
+        for col in self.feature_columns:
+            if col in test and not pd.isna(test[col]):
+                value = float(test[col])
+                if self.normalize_features:
+                    value = (value - self.feature_means[col]) / self.feature_stds[col]
+            else:
+                value = 0.0
+            features.append(value)
+        
+        return np.array(features, dtype=np.float32)
+    
+    def reset(self, build_id=None):
+        """Reset the environment for a new episode"""
+        # Randomly select a build if not specified
+        if build_id is None:
+            build_id = random.choice(list(self.build_data.keys()))
+        
+        self.current_build = build_id
+        self.test_data = self.build_data[build_id]
+        
+        # Get all test cases
+        self.test_cases = list(range(len(self.test_data)))
+        
+        # Initialize sorted test cases vector
+        self.sorted_test_cases_vector = []
+        
+        # Initialize metrics for this build
+        if self.current_build not in self.build_metrics:
+            self.build_metrics[self.current_build] = {
+                'apfd': None, 'apfdc': None, 'original_apfd': None,
+                'original_apfdc': None, 'improvement': None,
+                'test_ordering': None, 'num_failures': None,
+                'total_tests': len(self.test_cases)
+            }
+        
+        # Initialize the first pair of tests to compare
+        if len(self.test_cases) >= 2:
+            test1, test2 = random.sample(self.test_cases, 2)
+            self.current_pair = (test1, test2)
+            
+            # Create observation
+            features1 = self._extract_features(test1)
+            features2 = self._extract_features(test2)
+            observation = np.concatenate([features1, features2])
+            
+            return observation
+        else:
+            # Handle case with only one test
+            self.current_pair = (0, 0)
+            features = self._extract_features(0)
+            observation = np.concatenate([features, features])
+            return observation
+    
+    def step(self, action):
+        """Take an action in the environment"""
+        # Get current pair
+        test1, test2 = self.current_pair
+        
+        # Determine the winner based on action
+        if action == 0:
+            winner, loser = test1, test2
+        else:
+            winner, loser = test2, test1
+        
+        # Apply selection sort logic
+        if winner not in self.sorted_test_cases_vector:
+            self.sorted_test_cases_vector.append(winner)
+            if winner in self.test_cases:
+                self.test_cases.remove(winner)
+        
+        if loser not in self.sorted_test_cases_vector:
+            if len(self.test_cases) == 1 and self.test_cases[0] == loser:
+                self.sorted_test_cases_vector.append(loser)
+                self.test_cases.remove(loser)
+        
+        # Calculate reward
+        reward = self._calculate_reward(winner, loser)
+        
+        # Check if all tests have been sorted
+        done = (len(self.test_cases) == 0)
+        
+        if done:
+            # Calculate final metrics
+            apfd, apfdc, num_failures = self._calculate_metrics()
+            
+            # Store metrics for this build
+            self.build_metrics[self.current_build]['apfd'] = apfd
+            self.build_metrics[self.current_build]['apfdc'] = apfdc
+            self.build_metrics[self.current_build]['test_ordering'] = self.sorted_test_cases_vector.copy()
+            self.build_metrics[self.current_build]['num_failures'] = num_failures
+            
+            # Calculate original order metrics
+            original_order = list(range(len(self.test_data)))
+            orig_apfd, orig_apfdc, _ = self._calculate_metrics_for_order(original_order)
+            self.build_metrics[self.current_build]['original_apfd'] = orig_apfd
+            self.build_metrics[self.current_build]['original_apfdc'] = orig_apfdc
+            
+            # Calculate improvement
+            improvement = apfd - orig_apfd
+            self.build_metrics[self.current_build]['improvement'] = improvement
+            
+            # Create dummy observation for terminal state
+            observation = np.zeros(self.observation_space.shape)
+        else:
+            # Select next pair to compare
+            if len(self.test_cases) >= 2:
+                test1, test2 = random.sample(self.test_cases, 2)
+            elif len(self.test_cases) == 1:
+                test1 = self.test_cases[0]
+                # Pick a random test from already sorted ones
+                test2 = random.choice(self.sorted_test_cases_vector)
+            else:
+                # Should not reach here unless done is True
+                test1, test2 = 0, 0
+            
+            self.current_pair = (test1, test2)
+            
+            # Create observation
+            features1 = self._extract_features(test1)
+            features2 = self._extract_features(test2)
+            observation = np.concatenate([features1, features2])
+        
+        return observation, reward, done, {'build_id': self.current_build}
+    
+    def _calculate_reward(self, winner, loser):
+        """Calculate reward based on whether the correct test was prioritized"""
+        # Get verdicts
+        winner_verdict = self.test_data.iloc[winner]['Verdict']
+        loser_verdict = self.test_data.iloc[loser]['Verdict']
+        
+        winner_failed = self.is_test_failed(winner_verdict)
+        loser_failed = self.is_test_failed(loser_verdict)
+        
+        # If winner is a failure and loser is not, that's optimal
+        if winner_failed and not loser_failed:
+            return 1.0
+        # If loser is a failure and winner is not, that's wrong
+        elif not winner_failed and loser_failed:
+            return -1.0
+        # If both are the same (both pass or both fail)
+        else:
+            # Small reward for correct decision based on execution time
+            winner_time = self.test_data.iloc[winner].get('REC_RecentAvgExeTime', 1.0)
+            loser_time = self.test_data.iloc[loser].get('REC_RecentAvgExeTime', 1.0)
+            
+            # Faster tests should be prioritized when verdict is the same
+            if winner_time < loser_time:
+                return 0.1
+            else:
+                return -0.1
+    
+    def _calculate_metrics(self):
+        """Calculate APFD and APFDC for the current test ordering"""
+        return self._calculate_metrics_for_order(self.sorted_test_cases_vector)
+    
+    def _calculate_metrics_for_order(self, test_order):
+        """Calculate APFD and APFDC for a given test ordering"""
+        # Same implementation as in listwise environment
+        failures = []
+        for i, test_idx in enumerate(test_order):
+            verdict = self.test_data.iloc[test_idx]['Verdict']
+            if self.is_test_failed(verdict):
+                failures.append(i)
+        
+        total_tests = len(test_order)
+        total_failures = len(failures)
+        
+        # Calculate APFD
+        if total_failures == 0:
+            apfd = 1.0
+        else:
+            apfd = 1 - (sum(failures) / (total_tests * total_failures)) + (1 / (2 * total_tests))
+        
+        # Calculate APFDC (similar to listwise)
+        if total_failures == 0:
+            apfdc = 1.0
+        else:
+            # Get test costs
+            costs = []
+            for test_idx in test_order:
+                cost = self.test_data.iloc[test_idx].get('REC_RecentAvgExeTime', 1.0)
+                if pd.isna(cost):
+                    cost = 1.0
+                costs.append(cost)
+                
+            total_cost = sum(costs)
+            
+            # Calculate APFDC using costs
+            fault_detection_cost = 0
+            for i in failures:
+                fault_detection_cost += sum(costs[:i+1])
+                
+            if total_cost == 0:
+                apfdc = 1.0
+            else:
+                apfdc = 1 - (fault_detection_cost / (total_cost * total_failures)) + (costs[0] / (2 * total_cost))
+        
+        return apfd, apfdc, total_failures
+    
+    def get_build_metrics(self):
+        """Get metrics for all builds"""
+        return self.build_metrics
+
+
+class PointwiseTestPrioritizationEnv(gym.Env):
+    """Environment for pointwise test case prioritization using RL."""
+    def __init__(self, build_data, feature_columns=None, fail_value=0, pass_values=[1, 2]):
+        """Initialize the environment."""
+        self.build_data = build_data
+        self.current_build = None
+        self.fail_value = fail_value
+        self.pass_values = pass_values
+        
+        # Find the maximum number of tests in any build
+        self.max_tests = max(len(tests) for tests in build_data.values())
+        
+        # Define feature columns similar to other envs
+        if feature_columns is None:
+            sample_build_id = list(build_data.keys())[0]
+            all_columns = build_data[sample_build_id].columns.tolist()
+            self.feature_columns = [col for col in all_columns if 
+                                col.startswith("REC") or 
+                                col.startswith("TES_PRO") or 
+                                col.startswith("TES_COM")]
+            exclude_columns = ['Build', 'Test', 'Verdict', 'Duration']
+            self.feature_columns = [col for col in self.feature_columns if col not in exclude_columns]
+        else:
+            self.feature_columns = feature_columns
+            
+        self.feature_dim = len(self.feature_columns)
+
+        # Compute statistics for normalization
+        self.feature_means = {}
+        self.feature_stds = {}
+        self.normalize_features = True
+        if self.normalize_features:
+            # Similar normalization setup as in other envs
+            all_features = []
+            for build_id, df in self.build_data.items():
+                for col in self.feature_columns:
+                    if col in df.columns:
+                        values = df[col].values
+                        all_features.append(values)
+            
+            all_features = np.concatenate(all_features)
+            self.feature_means = {col: np.mean(all_features) for col in self.feature_columns}
+            self.feature_stds = {col: np.std(all_features) + 1e-5 for col in self.feature_columns}
+        
+        # Define observation space - pointwise looks at single test
+        self.observation_space = spaces.Box(
+            low=-float('inf'), high=float('inf'),
+            shape=(self.feature_dim,)
+        )
+        
+        # Define action space - continuous priority score [0, 1]
+        self.action_space = spaces.Box(
+            low=0.0, high=1.0, shape=(1,)
+        )
+        
+        # Initialize tracking variables
+        self.test_indices = None
+        self.test_priorities = None
+        self.current_test_idx = None
+        self.build_metrics = {}
+    
+    def is_test_failed(self, verdict):
+        """Check if a test has failed based on its verdict value"""
+        if isinstance(verdict, (int, float, np.integer, np.floating)):
+            return float(verdict) == float(self.fail_value)
+        elif isinstance(verdict, str):
+            return verdict == str(self.fail_value)
+        else:
+            return str(verdict) == str(self.fail_value)
+    
+    def _extract_features(self, test_idx):
+        """Extract normalized features for a test case"""
+        test = self.test_data.iloc[test_idx]
+        features = []
+        
+        for col in self.feature_columns:
+            if col in test and not pd.isna(test[col]):
+                value = float(test[col])
+                if self.normalize_features:
+                    value = (value - self.feature_means[col]) / self.feature_stds[col]
+            else:
+                value = 0.0
+            features.append(value)
+        
+        return np.array(features, dtype=np.float32)
+    
+    def reset(self, build_id=None):
+        """Reset the environment for a new episode"""
+        # Randomly select a build if not specified
+        if build_id is None:
+            build_id = random.choice(list(self.build_data.keys()))
+        
+        self.current_build = build_id
+        self.test_data = self.build_data[build_id]
+        
+        # Get all test indices
+        self.test_indices = list(range(len(self.test_data)))
+        
+        # Initialize test priorities
+        self.test_priorities = {}
+        
+        # Set current test index to the first test
+        self.current_test_idx = 0
+        
+        # Initialize metrics for this build
+        if self.current_build not in self.build_metrics:
+            self.build_metrics[self.current_build] = {
+                'apfd': None, 'apfdc': None, 'original_apfd': None,
+                'original_apfdc': None, 'improvement': None,
+                'test_ordering': None, 'num_failures': None,
+                'total_tests': len(self.test_indices)
+            }
+        
+        # Return the features of the first test
+        observation = self._extract_features(self.current_test_idx)
+        return observation
+    
+    def step(self, action):
+        """Take an action in the environment"""
+        # Store the priority for the current test
+        priority = float(action[0])  # Extract from Box action
+        self.test_priorities[self.current_test_idx] = priority
+        
+        # Calculate reward
+        reward = self._calculate_reward(self.current_test_idx, priority)
+        
+        # Move to the next test
+        self.current_test_idx += 1
+        
+        # Check if all tests have been processed
+        done = (self.current_test_idx >= len(self.test_indices))
+        
+        if done:
+            # Calculate final ordering based on priorities
+            ordered_tests = sorted(self.test_priorities.keys(), 
+                                  key=lambda idx: self.test_priorities[idx],
+                                  reverse=True)  # Higher priority first
+            
+            # Calculate final metrics
+            apfd, apfdc, num_failures = self._calculate_metrics_for_order(ordered_tests)
+            
+            # Store metrics for this build
+            self.build_metrics[self.current_build]['apfd'] = apfd
+            self.build_metrics[self.current_build]['apfdc'] = apfdc
+            self.build_metrics[self.current_build]['test_ordering'] = ordered_tests
+            self.build_metrics[self.current_build]['num_failures'] = num_failures
+            
+            # Calculate original order metrics
+            original_order = list(range(len(self.test_data)))
+            orig_apfd, orig_apfdc, _ = self._calculate_metrics_for_order(original_order)
+            self.build_metrics[self.current_build]['original_apfd'] = orig_apfd
+            self.build_metrics[self.current_build]['original_apfdc'] = orig_apfdc
+            
+            # Calculate improvement
+            improvement = apfd - orig_apfd
+            self.build_metrics[self.current_build]['improvement'] = improvement
+            
+            # Create dummy observation for terminal state
+            observation = np.zeros(self.observation_space.shape)
+        else:
+            # Return the features of the next test
+            observation = self._extract_features(self.current_test_idx)
+        
+        return observation, reward, done, {'build_id': self.current_build}
+    
+    def _calculate_reward(self, test_idx, priority):
+        """Calculate reward based on whether the priority reflects failure importance"""
+        # Get verdict
+        verdict = self.test_data.iloc[test_idx]['Verdict']
+        is_failed = self.is_test_failed(verdict)
+        
+        # For failing tests, priority should be high
+        if is_failed:
+            return priority  # Reward is higher for higher priority
+        else:
+            return 1.0 - priority  # Reward is higher for lower priority
+    
+    def _calculate_metrics_for_order(self, test_order):
+        """Calculate APFD and APFDC for a given test ordering"""
+        # Same implementation as in other environments
+        failures = []
+        for i, test_idx in enumerate(test_order):
+            verdict = self.test_data.iloc[test_idx]['Verdict']
+            if self.is_test_failed(verdict):
+                failures.append(i)
+        
+        total_tests = len(test_order)
+        total_failures = len(failures)
+        
+        # Calculate APFD
+        if total_failures == 0:
+            apfd = 1.0
         else:
             apfd = 1 - (sum(failures) / (total_tests * total_failures)) + (1 / (2 * total_tests))
         

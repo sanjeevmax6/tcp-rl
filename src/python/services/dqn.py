@@ -121,25 +121,33 @@ class DQNAgent:
     #     return torch.FloatTensor(state).to(self.device)
 
     def process_state(self, state):
-        """Process the state into a tensor for the neural network."""
-        # Handle different state formats
+        """Process different state formats into tensors"""
         if isinstance(state, np.ndarray):
-            # Listwise environment - state is a matrix
-            flattened_state = state.reshape(-1)
+            if len(state.shape) == 1:  # Vector state (pointwise)
+                return torch.FloatTensor(state).to(self.device)
+            else:  # Matrix state (listwise)
+                flattened_state = state.reshape(-1)
+                
+                # Ensure consistent size
+                if len(flattened_state) < self.state_size:
+                    state_tensor = np.pad(flattened_state, (0, self.state_size - len(flattened_state)), 'constant')
+                else:
+                    state_tensor = flattened_state[:self.state_size]
+                    
+                return torch.FloatTensor(state_tensor).to(self.device)
         else:
-            # Original environment - state is a dictionary
+            # Original environment with dictionary state
             test_features = state["test_features"]
             available_mask = state["available_mask"]
             flattened_state = np.concatenate([test_features.reshape(-1), available_mask])
-        
-        # Ensure consistent size
-        max_size = self.state_size
-        if len(flattened_state) < max_size:
-            state_tensor = np.pad(flattened_state, (0, max_size - len(flattened_state)), 'constant')
-        else:
-            state_tensor = flattened_state[:max_size]
             
-        return torch.FloatTensor(state_tensor).to(self.device)
+            # Ensure consistent size
+            if len(flattened_state) < self.state_size:
+                state_tensor = np.pad(flattened_state, (0, self.state_size - len(flattened_state)), 'constant')
+            else:
+                state_tensor = flattened_state[:self.state_size]
+                
+            return torch.FloatTensor(state_tensor).to(self.device)
     
     # def act(self, state, epsilon=None):
     #     """
@@ -179,38 +187,34 @@ class DQNAgent:
     #     return np.argmax(masked_q_values)
 
     def act(self, state, epsilon=None):
-        """
-        Select an action using an epsilon-greedy policy.
-        
-        Args:
-            state: Current state
-            epsilon: Exploration rate (use agent's epsilon if None)
-            
-        Returns:
-            Selected action
-        """
+        """Select an action using epsilon-greedy policy"""
         if epsilon is None:
             epsilon = self.epsilon
             
-        # With probability epsilon, select a random action
+        # Choose random action with probability epsilon
         if np.random.rand() <= epsilon:
-            # For listwise environment, state is a matrix
+            # Handle different environment types
             if isinstance(state, np.ndarray):
-                # Find indices that don't have padding value (-1)
-                available_indices = np.where(~np.all(state == -1, axis=1))[0]
-                if len(available_indices) > 0:
-                    return np.random.choice(available_indices)
-                else:
-                    return 0  # Fallback
+                # For matrix/vector state (listwise/pointwise)
+                if len(state.shape) == 1:  # Vector state (pointwise)
+                    # For pointwise, return a random priority between 0 and 1
+                    return np.random.uniform(0, 1, (1,))
+                else:  # Matrix state (listwise)
+                    # Find indices that don't have padding value (-1)
+                    available_indices = np.where(~np.all(state == -1, axis=1))[0]
+                    if len(available_indices) > 0:
+                        return np.random.choice(available_indices)
+                    else:
+                        return 0
             else:
                 # For dictionary state (original environment)
                 available_indices = np.where(state["available_mask"] == 1)[0]
                 if len(available_indices) > 0:
                     return np.random.choice(available_indices)
                 else:
-                    return 0  # Fallback
+                    return 0
         
-        # Process state
+        # Process state based on its type
         state_tensor = self.process_state(state)
         
         # Get Q values
@@ -219,20 +223,25 @@ class DQNAgent:
             q_values = self.q_network(state_tensor)
         self.q_network.train()
         
-        # Mask out unavailable actions based on state type
-        masked_q_values = q_values.cpu().numpy()
-        
+        # Determine action based on environment type
         if isinstance(state, np.ndarray):
-            # For listwise environment, mask tests with padding value
-            for i in range(len(state)):
-                if np.all(state[i] == -1):  # If all values are padding
-                    masked_q_values[i] = -1e9
+            if len(state.shape) == 1:  # Vector state (pointwise)
+                # For pointwise, clamp to 0-1 for priority
+                action_value = np.clip(q_values.cpu().numpy()[0], 0, 1)
+                return np.array([action_value], dtype=np.float32)
+            else:  # Matrix state (listwise)
+                # Mask tests with padding value
+                masked_q_values = q_values.cpu().numpy()
+                for i in range(len(state)):
+                    if np.all(state[i] == -1):  # If all values are padding
+                        masked_q_values[i] = -1e9
+                return np.argmax(masked_q_values)
         else:
-            # For dictionary state (original environment)
+            # For original environment
+            masked_q_values = q_values.cpu().numpy()
             masked_q_values[state["available_mask"] == 0] = -1e9
-            
-        return np.argmax(masked_q_values)
-    
+            return np.argmax(masked_q_values)
+        
     def replay(self):
         """Train the agent by replaying experiences from memory."""
         if len(self.memory) < self.batch_size:
@@ -245,33 +254,56 @@ class DQNAgent:
         
         for state, action, reward, next_state, done in minibatch:
             states.append(self.process_state(state))
-            actions.append(action)
+            # Handle different action types
+            if isinstance(action, np.ndarray) and action.shape[0] == 1:
+                # For continuous actions (pointwise)
+                actions.append(float(action[0]))
+            else:
+                # For discrete actions (listwise, pairwise)
+                actions.append(int(action))
             rewards.append(reward)
             next_states.append(self.process_state(next_state))
             dones.append(done)
         
         states = torch.stack(states)
-        actions = torch.LongTensor(actions).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
         next_states = torch.stack(next_states)
         dones = torch.FloatTensor(dones).to(self.device)
         
-        # Compute current Q values
-        current_q_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+        # Handle different action types for Q-value computation
+        if isinstance(minibatch[0][1], np.ndarray) and minibatch[0][1].shape[0] == 1:
+            # For continuous actions (pointwise)
+            actions_tensor = torch.FloatTensor(actions).to(self.device)
+            # For continuous actions, we directly compare the output value
+            current_q_values = self.q_network(states)[:, 0]
+            
+            # Compute target Q values
+            with torch.no_grad():
+                next_q_values = self.target_network(next_states)[:, 0]
+                target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
+            
+            # Compute MSE loss
+            loss = F.mse_loss(current_q_values, target_q_values)
+        else:
+            # For discrete actions (listwise, pairwise)
+            actions_tensor = torch.LongTensor(actions).to(self.device)
+            
+            # Compute current Q values
+            current_q_values = self.q_network(states).gather(1, actions_tensor.unsqueeze(1)).squeeze(1)
+            
+            # Compute target Q values
+            with torch.no_grad():
+                next_q_values = self.target_network(next_states).max(1)[0]
+                target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
+            
+            # Compute loss
+            loss = F.mse_loss(current_q_values, target_q_values)
         
-        # Compute target Q values
-        with torch.no_grad():
-            next_q_values = self.target_network(next_states).max(1)[0]
-            target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
-        
-        # Compute loss
-        loss = F.mse_loss(current_q_values, target_q_values)
         self.loss_history.append(loss.item())
         
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-
         self.optimizer.step()
         
         # Decay epsilon
