@@ -109,22 +109,112 @@ def visualize_build_learning(build_apfd_history, build_improvement_history, save
     print(f"Saved build-specific learning visualizations")
 
 
-def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
+# def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
+#     """
+#     Evaluate the DQN agent on specific builds.
+    
+#     Args:
+#         env: Environment
+#         agent: DQN agent
+#         build_ids: List of build IDs to evaluate on. If None, random builds are selected.
+#         num_builds: Number of builds to evaluate on if build_ids is None.
+        
+#     Returns:
+#         Dictionary of evaluation metrics.
+#     """
+#     # Select builds to evaluate on
+#     if build_ids is None:
+#         # Identify builds with failures (without relying on env.builds_with_failures)
+#         builds_with_failures = []
+#         for build_id, df in env.build_data.items():
+#             if 'Verdict' in df.columns:
+#                 failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
+#                 if failures > 0:
+#                     builds_with_failures.append(build_id)
+        
+#         if builds_with_failures:
+#             build_ids = builds_with_failures[:min(num_builds, len(builds_with_failures))]
+#         else:
+#             build_ids = random.sample(list(env.build_data.keys()), min(num_builds, len(env.build_data)))
+#     else:
+#         # Filter out builds that don't exist in the dataset
+#         build_ids = [b for b in build_ids if b in env.build_data]
+        
+#         # If no builds are left, select random ones
+#         if not build_ids:
+#             build_ids = random.sample(list(env.build_data.keys()), min(num_builds, len(env.build_data)))
+    
+#     evaluation_metrics = {}
+#     apfds = []
+#     improvements = []
+    
+#     for build_id in build_ids:
+#         try:
+#             state = env.reset(build_id=build_id)
+#             done = False
+            
+#             while not done:
+#                 # Get action from agent
+#                 action = agent.act(state, epsilon=0.0)  # No exploration during evaluation
+                
+#                 # Take action
+#                 next_state, reward, done, info = env.step(action)
+                
+#                 state = next_state
+            
+#             # Check if build_metrics exists for this build
+#             if build_id in env.build_metrics:
+#                 # Store metrics for this build
+#                 build_metrics = env.build_metrics[build_id]
+#                 evaluation_metrics[build_id] = build_metrics.copy()
+                
+#                 apfds.append(build_metrics['apfd'])
+#                 improvements.append(build_metrics['improvement'])
+#             else:
+#                 print(f"Warning: No metrics found for build {build_id}")
+#         except Exception as e:
+#             print(f"Error evaluating build {build_id}: {str(e)}")
+#             continue
+    
+#     # Calculate average metrics
+#     if not apfds:
+#         print("WARNING: No valid APFD values collected during evaluation!")
+#         for build_id in build_ids:
+#             if build_id in evaluation_metrics:
+#                 print(f"  Build {build_id} metrics: {evaluation_metrics[build_id]}")
+#             else:
+#                 print(f"  Build {build_id}: No metrics available")
+        
+#         # Default values when no valid data
+#         avg_apfd = 0.0
+#         avg_improvement = 0.0
+#     else:
+#         avg_apfd = sum(apfds) / len(apfds)
+#         avg_improvement = sum(improvements) / len(improvements) if improvements else 0
+    
+#     return {
+#         'build_metrics': evaluation_metrics,
+#         'avg_apfd': avg_apfd,
+#         'avg_improvement': avg_improvement,
+#         'evaluated_builds': build_ids
+#     }
+
+def evaluate_agent(env, agent, build_ids=None, num_builds=10):
     """
-    Evaluate the DQN agent on specific builds.
+    Evaluate an agent on specific builds.
+    Generic function that works with both DQN and PPO agents.
     
     Args:
         env: Environment
-        agent: DQN agent
+        agent: Agent (DQN or PPO)
         build_ids: List of build IDs to evaluate on. If None, random builds are selected.
         num_builds: Number of builds to evaluate on if build_ids is None.
         
     Returns:
         Dictionary of evaluation metrics.
     """
-    # Select builds to evaluate on
+    # Select builds to evaluate on (same as your evaluate_dqn function)
     if build_ids is None:
-        # Identify builds with failures (without relying on env.builds_with_failures)
         builds_with_failures = []
         for build_id, df in env.build_data.items():
             if 'Verdict' in df.columns:
@@ -137,10 +227,8 @@ def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
         else:
             build_ids = random.sample(list(env.build_data.keys()), min(num_builds, len(env.build_data)))
     else:
-        # Filter out builds that don't exist in the dataset
         build_ids = [b for b in build_ids if b in env.build_data]
         
-        # If no builds are left, select random ones
         if not build_ids:
             build_ids = random.sample(list(env.build_data.keys()), min(num_builds, len(env.build_data)))
     
@@ -155,16 +243,15 @@ def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
             
             while not done:
                 # Get action from agent
-                action = agent.act(state, epsilon=0.0)  # No exploration during evaluation
+                action = agent.act(state)
                 
                 # Take action
                 next_state, reward, done, info = env.step(action)
                 
                 state = next_state
             
-            # Check if build_metrics exists for this build
+            # Store metrics for this build
             if build_id in env.build_metrics:
-                # Store metrics for this build
                 build_metrics = env.build_metrics[build_id]
                 evaluation_metrics[build_id] = build_metrics.copy()
                 
@@ -177,20 +264,8 @@ def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
             continue
     
     # Calculate average metrics
-    if not apfds:
-        print("WARNING: No valid APFD values collected during evaluation!")
-        for build_id in build_ids:
-            if build_id in evaluation_metrics:
-                print(f"  Build {build_id} metrics: {evaluation_metrics[build_id]}")
-            else:
-                print(f"  Build {build_id}: No metrics available")
-        
-        # Default values when no valid data
-        avg_apfd = 0.0
-        avg_improvement = 0.0
-    else:
-        avg_apfd = sum(apfds) / len(apfds)
-        avg_improvement = sum(improvements) / len(improvements) if improvements else 0
+    avg_apfd = sum(apfds) / len(apfds) if apfds else 0.0
+    avg_improvement = sum(improvements) / len(improvements) if improvements else 0.0
     
     return {
         'build_metrics': evaluation_metrics,
@@ -198,7 +273,6 @@ def evaluate_dqn(env, agent, build_ids=None, num_builds=10):
         'avg_improvement': avg_improvement,
         'evaluated_builds': build_ids
     }
-
 
 def visualize_results(training_metrics, save_dir='figures'):
     """

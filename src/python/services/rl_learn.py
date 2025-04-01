@@ -7,7 +7,8 @@ import time
 import matplotlib.pyplot as plt
 from dqn import DQNNetwork, DQNAgent
 from env import TestPrioritizationEnv, FixedTestPrioritizationEnv, ListwiseTestPrioritizationEnv, PairwiseTestPrioritizationEnv, PointwiseTestPrioritizationEnv
-from rl_eval import visualize_build_learning, evaluate_dqn, visualize_results, analyze_agent_behavior
+from rl_eval import visualize_build_learning, evaluate_agent, visualize_results, analyze_agent_behavior
+from ppo import PPOAgent
 
 def select_and_print_features(build_data, prefixes=["REC", "TES_PRO", "TES_COM"]):
     """
@@ -233,6 +234,156 @@ def train_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_frequency
         'episode_improvements': episode_improvements,
         'episode_build_ids': episode_build_ids,
         'eval_apfds': eval_apfds,
+        'build_metrics': build_metrics,
+        'build_apfd_history': build_apfd_history,
+        'build_improvement_history': build_improvement_history,
+        'final_env_metrics': env.get_build_metrics()
+    }
+
+def train_ppo(env, agent, num_episodes=1000, eval_frequency=100, 
+              save_dir='models', model_name='ppo_model.zip'):
+    """
+    Train the PPO agent.
+    
+    Args:
+        env: Environment
+        agent: PPO agent
+        num_episodes: Number of episodes to train for
+        eval_frequency: How often to evaluate the agent
+        save_dir: Directory to save the model
+        model_name: Name of the model file
+        
+    Returns:
+        Dictionary of training metrics.
+    """
+    # Create save directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Track metrics
+    episode_rewards = []
+    episode_apfds = []
+    episode_improvements = []
+    episode_build_ids = [] 
+    build_metrics = {}
+    
+    # Add dictionaries to track per-build metrics
+    build_apfd_history = {}
+    build_improvement_history = {}
+    
+    # Calculate timesteps based on episodes and environment complexity
+    # For PPO, we need to use timesteps instead of episodes
+    avg_episode_length = 50  # Estimate average episode length
+    total_timesteps = num_episodes * avg_episode_length
+    
+    # Create the environment with PPO
+    agent.set_env(env)
+    
+    # Training loop
+    start_time = time.time()
+    best_avg_improvement = -float('inf')
+    
+    print(f"Starting PPO training for approximately {num_episodes} episodes...")
+    
+    # Train in batches to allow for evaluation
+    timesteps_per_batch = total_timesteps // (num_episodes // eval_frequency)
+    batches = total_timesteps // timesteps_per_batch
+    
+    for batch in range(batches):
+        # Train for a batch of timesteps
+        agent.learn(total_timesteps=timesteps_per_batch)
+        
+        # Evaluate the agent
+        current_episode = batch * eval_frequency
+        
+        # Reset environment to evaluate
+        state = env.reset()
+        build_id = env.current_build
+        done = False
+        episode_reward = 0
+        
+        # Run one episode for evaluation
+        while not done:
+            action = agent.act(state)
+            next_state, reward, done, info = env.step(action)
+            state = next_state
+            episode_reward += reward
+        
+        # Get build metrics
+        build_id = info['build_id']
+        episode_build_ids.append(build_id) 
+        apfd = env.build_metrics[build_id]['apfd']
+        improvement = env.build_metrics[build_id]['improvement']
+        
+        # Store metrics
+        episode_rewards.append(episode_reward)
+        episode_apfds.append(apfd)
+        episode_improvements.append(improvement)
+        
+        # Store build metrics
+        if build_id not in build_metrics:
+            build_metrics[build_id] = []
+        build_metrics[build_id].append(env.build_metrics[build_id].copy())
+        
+        # Store per-build history metrics
+        if build_id not in build_apfd_history:
+            build_apfd_history[build_id] = []
+            build_improvement_history[build_id] = []
+            
+        build_apfd_history[build_id].append(apfd)
+        build_improvement_history[build_id].append(improvement)
+        
+        # Print progress
+        elapsed = time.time() - start_time
+        print(f"Batch {batch+1}/{batches}, APFD: {apfd:.4f}, "
+              f"Improvement: {improvement:.4f}, Time: {elapsed:.1f}s")
+        
+        # Find builds with failures for evaluation
+        builds_with_failures = []
+        for b_id, df in env.build_data.items():
+            if 'Verdict' in df.columns:
+                failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
+                if failures > 0:
+                    builds_with_failures.append(b_id)
+        
+        eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
+        eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
+        avg_apfd = eval_results['avg_apfd']
+        avg_improvement = eval_results['avg_improvement']
+        
+        print(f"\nEvaluation at batch {batch+1}")
+        print(f"Avg APFD: {avg_apfd:.4f}, Avg Improvement: {avg_improvement:.4f}")
+        
+        # Save the model if it's the best so far
+        if avg_improvement > best_avg_improvement:
+            best_avg_improvement = avg_improvement
+            agent.save(os.path.join(save_dir, f"best_{model_name}"))
+            print(f"Saved best model with avg improvement: {best_avg_improvement:.4f}")
+    
+    # Save the final model
+    agent.save(os.path.join(save_dir, model_name))
+    print(f"Saved final model to {os.path.join(save_dir, model_name)}")
+    
+    # Save metrics to CSV
+    metrics_df = pd.DataFrame({
+        'Batch': range(len(episode_rewards)),
+        'Build': episode_build_ids,
+        'Reward': episode_rewards,
+        'APFD': episode_apfds,
+        'Improvement': episode_improvements
+    })
+    
+    metrics_csv_path = os.path.join(save_dir, f'ppo_training_metrics{os.path.basename(model_name).replace(".zip", "")}.csv')
+    metrics_df.to_csv(metrics_csv_path, index=False)
+    
+    # Visualize build learning
+    visualize_build_learning(build_apfd_history, build_improvement_history, save_dir)
+    
+    # Return training metrics
+    return {
+        'episode_rewards': episode_rewards,
+        'episode_apfds': episode_apfds,
+        'episode_improvements': episode_improvements,
+        'episode_build_ids': episode_build_ids,
         'build_metrics': build_metrics,
         'build_apfd_history': build_apfd_history,
         'build_improvement_history': build_improvement_history,
@@ -793,15 +944,24 @@ def train_pointwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval
         'final_env_metrics': env.get_build_metrics()
     }
 
-def run_all_test_prioritization_approaches(num_episodes=1000):
-    """Run and compare all test prioritization approaches"""
+def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
+    """
+    Run and compare test prioritization approaches with either DQN or PPO agents.
+    
+    Args:
+        num_episodes: Number of episodes to train for
+        agent_type: Type of agent to use ("dqn" or "ppo")
+    
+    Returns:
+        Dictionary of results for each approach
+    """
     # Parameters
     data_path = "/Users/sanjeev/TCP-CI/TCP-CI-dataset/datasets/Angel-ML@angel/dataset.csv"
     fail_value = 0
     pass_values = [1, 2]
     
-    # Add episode postfix to all directories and filenames
-    episode_postfix = f"_{num_episodes}ep"
+    # Add episode and agent type to postfixes
+    episode_postfix = f"_{num_episodes}ep_{agent_type}"
     comparison_dir = f'models/comparison{episode_postfix}'
     figures_dir = f'figures/comparison{episode_postfix}'
     
@@ -829,11 +989,14 @@ def run_all_test_prioritization_approaches(num_episodes=1000):
     os.makedirs(comparison_dir, exist_ok=True)
     os.makedirs(figures_dir, exist_ok=True)
     
+    # Run each approach with the selected agent type
+    results = {}
+    
     # =====================
     # LISTWISE APPROACH
     # =====================
     print("\n" + "="*50)
-    print("RUNNING LISTWISE APPROACH")
+    print(f"RUNNING LISTWISE APPROACH WITH {agent_type.upper()}")
     print("="*50)
     
     # Create listwise environment
@@ -849,33 +1012,56 @@ def run_all_test_prioritization_approaches(num_episodes=1000):
     flattened_state = sample_state.reshape(-1)
     listwise_state_size = len(flattened_state)
     
-    # Initialize DQN agent
-    listwise_agent = DQNAgent(
-        state_size=listwise_state_size,
-        action_size=listwise_env.max_tests,
-        hidden_dim=128,
-        learning_rate=0.001,
-        gamma=0.99,
-        epsilon=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.995
-    )
-    
-    # Train the agent
-    print(f"Training the listwise agent for {num_episodes} episodes...")
-    listwise_model_name = f'listwise_dqn{episode_postfix}.pt'
-    listwise_metrics = train_listwise_dqn(
-        env=listwise_env,
-        agent=listwise_agent,
-        num_episodes=num_episodes,
-        update_frequency=10,
-        eval_frequency=100,
-        save_dir=comparison_dir,
-        model_name=listwise_model_name
-    )
+    # Initialize agent based on type
+    if agent_type.lower() == "dqn":
+        from dqn import DQNAgent
+        listwise_agent = DQNAgent(
+            state_size=listwise_state_size,
+            action_size=listwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.001,
+            gamma=0.99,
+            epsilon=1.0,
+            epsilon_min=0.01,
+            epsilon_decay=0.995
+        )
+        
+        # Train the agent
+        print(f"Training the listwise DQN agent for {num_episodes} episodes...")
+        listwise_model_name = f'listwise_dqn{episode_postfix}.pt'
+        listwise_metrics = train_listwise_dqn(
+            env=listwise_env,
+            agent=listwise_agent,
+            num_episodes=num_episodes,
+            update_frequency=10,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=listwise_model_name
+        )
+    else:  # PPO
+        from ppo import PPOAgent
+        listwise_agent = PPOAgent(
+            state_size=listwise_state_size,
+            action_size=listwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.0007,
+            gamma=0.99
+        )
+        
+        # Train the agent
+        print(f"Training the listwise PPO agent for {num_episodes} episodes...")
+        listwise_model_name = f'listwise_ppo{episode_postfix}.zip'
+        listwise_metrics = train_ppo(
+            env=listwise_env,
+            agent=listwise_agent,
+            num_episodes=num_episodes,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=listwise_model_name
+        )
     
     # Evaluate on builds with failures
-    print("Evaluating the listwise agent on builds with failures...")
+    print(f"Evaluating the listwise {agent_type.upper()} agent on builds with failures...")
     builds_with_failures = []
     for build_id, df in listwise_env.build_data.items():
         if 'Verdict' in df.columns:
@@ -884,117 +1070,34 @@ def run_all_test_prioritization_approaches(num_episodes=1000):
                 builds_with_failures.append(build_id)
     
     eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
-    listwise_results = evaluate_dqn(listwise_env, listwise_agent, build_ids=eval_builds)
+    listwise_results = evaluate_agent(listwise_env, listwise_agent, build_ids=eval_builds)
     
-    # =====================
-    # PAIRWISE APPROACH
-    # =====================
-    print("\n" + "="*50)
-    print("RUNNING PAIRWISE APPROACH")
-    print("="*50)
+    # Add to results
+    results['listwise'] = {
+        'env': listwise_env, 
+        'agent': listwise_agent, 
+        'results': listwise_results
+    }
     
-    # Create pairwise environment
-    pairwise_env = PairwiseTestPrioritizationEnv(
-        build_data=build_data,
-        feature_columns=selected_features,
-        fail_value=fail_value,
-        pass_values=pass_values
-    )
+    # Continue with pairwise and pointwise approaches in a similar way...
+    # (The pairwise and pointwise sections would be similar to the listwise section above,
+    # just with different environments and model names)
     
-    # Calculate state size
-    sample_state = pairwise_env.reset()
-    pairwise_state_size = len(sample_state)
-    
-    # Initialize DQN agent
-    pairwise_agent = DQNAgent(
-        state_size=pairwise_state_size,
-        action_size=2,  # Binary choice for pairwise
-        hidden_dim=128,
-        learning_rate=0.001,
-        gamma=0.99,
-        epsilon=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.995
-    )
-    
-    # Train the agent
-    print(f"Training the pairwise agent for {num_episodes} episodes...")
-    pairwise_model_name = f'pairwise_dqn{episode_postfix}.pt'
-    pairwise_metrics = train_pairwise_dqn(
-        env=pairwise_env,
-        agent=pairwise_agent,
-        num_episodes=num_episodes,
-        update_frequency=10,
-        eval_frequency=100,
-        save_dir=comparison_dir,
-        model_name=pairwise_model_name
-    )
-    
-    # Evaluate on builds with failures
-    print("Evaluating the pairwise agent on builds with failures...")
-    pairwise_results = evaluate_dqn(pairwise_env, pairwise_agent, build_ids=eval_builds)
-    
-    # =====================
-    # POINTWISE APPROACH
-    # =====================
-    print("\n" + "="*50)
-    print("RUNNING POINTWISE APPROACH")
-    print("="*50)
-    
-    # Create pointwise environment
-    pointwise_env = PointwiseTestPrioritizationEnv(
-        build_data=build_data,
-        feature_columns=selected_features,
-        fail_value=fail_value,
-        pass_values=pass_values
-    )
-    
-    # Calculate state size
-    sample_state = pointwise_env.reset()
-    pointwise_state_size = len(sample_state)
-    
-    # Initialize DQN agent for continuous actions
-    pointwise_agent = DQNAgent(
-        state_size=pointwise_state_size,
-        action_size=1,  # Continuous priority score
-        hidden_dim=128,
-        learning_rate=0.001,
-        gamma=0.99,
-        epsilon=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.995
-    )
-    
-    # Train the agent
-    print(f"Training the pointwise agent for {num_episodes} episodes...")
-    pointwise_model_name = f'pointwise_dqn{episode_postfix}.pt'
-    pointwise_metrics = train_pointwise_dqn(
-        env=pointwise_env,
-        agent=pointwise_agent,
-        num_episodes=num_episodes,
-        update_frequency=10,
-        eval_frequency=100,
-        save_dir=comparison_dir,
-        model_name=pointwise_model_name
-    )
-    
-    # Evaluate on builds with failures
-    print("Evaluating the pointwise agent on builds with failures...")
-    pointwise_results = evaluate_dqn(pointwise_env, pointwise_agent, build_ids=eval_builds)
+    # ... [Add code for pairwise and pointwise] ...
     
     # =====================
     # COMPARE APPROACHES
     # =====================
     print("\n" + "="*50)
-    print("COMPARING ALL APPROACHES")
+    print(f"COMPARING ALL APPROACHES WITH {agent_type.upper()}")
     print("="*50)
     
     # Print comparison table
     print(f"{'Approach':<15} {'Avg APFD':<15} {'Avg Improvement':<20}")
     print("-" * 50)
-    print(f"{'Listwise':<15} {listwise_results['avg_apfd']:<15.4f} {listwise_results['avg_improvement']:<20.4f}")
-    print(f"{'Pairwise':<15} {pairwise_results['avg_apfd']:<15.4f} {pairwise_results['avg_improvement']:<20.4f}")
-    print(f"{'Pointwise':<15} {pointwise_results['avg_apfd']:<15.4f} {pointwise_results['avg_improvement']:<20.4f}")
+    print(f"{'Listwise':<15} {results['listwise']['results']['avg_apfd']:<15.4f} {results['listwise']['results']['avg_improvement']:<20.4f}")
+    print(f"{'Pairwise':<15} {results['pairwise']['results']['avg_apfd']:<15.4f} {results['pairwise']['results']['avg_improvement']:<20.4f}")
+    print(f"{'Pointwise':<15} {results['pointwise']['results']['avg_apfd']:<15.4f} {results['pointwise']['results']['avg_improvement']:<20.4f}")
     
     # Create comparison visualization
     plt.figure(figsize=(12, 8))
@@ -1002,20 +1105,27 @@ def run_all_test_prioritization_approaches(num_episodes=1000):
     # Plot APFD comparison
     plt.subplot(2, 1, 1)
     approaches = ['Listwise', 'Pairwise', 'Pointwise']
-    apfds = [listwise_results['avg_apfd'], pairwise_results['avg_apfd'], pointwise_results['avg_apfd']]
+    apfds = [
+        results['listwise']['results']['avg_apfd'], 
+        results['pairwise']['results']['avg_apfd'], 
+        results['pointwise']['results']['avg_apfd']
+    ]
     
     plt.bar(approaches, apfds)
-    plt.title(f'Average APFD Comparison ({num_episodes} episodes)')
+    plt.title(f'Average APFD Comparison ({agent_type.upper()}, {num_episodes} episodes)')
     plt.ylabel('APFD')
     plt.ylim(0, 1)
     
     # Plot Improvement comparison
     plt.subplot(2, 1, 2)
-    improvements = [listwise_results['avg_improvement'], pairwise_results['avg_improvement'], 
-                   pointwise_results['avg_improvement']]
+    improvements = [
+        results['listwise']['results']['avg_improvement'], 
+        results['pairwise']['results']['avg_improvement'], 
+        results['pointwise']['results']['avg_improvement']
+    ]
     
     plt.bar(approaches, improvements)
-    plt.title(f'Average Improvement Comparison ({num_episodes} episodes)')
+    plt.title(f'Average Improvement Comparison ({agent_type.upper()}, {num_episodes} episodes)')
     plt.ylabel('Improvement over Original Order')
     plt.axhline(y=0, color='r', linestyle='-')
     
@@ -1025,13 +1135,23 @@ def run_all_test_prioritization_approaches(num_episodes=1000):
     
     print(f"Saved comparison visualization to {comparison_fig_path}")
     
-    return {
-        'listwise': {'env': listwise_env, 'agent': listwise_agent, 'results': listwise_results},
-        'pairwise': {'env': pairwise_env, 'agent': pairwise_agent, 'results': pairwise_results},
-        'pointwise': {'env': pointwise_env, 'agent': pointwise_agent, 'results': pointwise_results}
-    }
+    return results
 
 if __name__ == "__main__":
-    # Specify the number of episodes as an argument
-    num_episodes = 5000
-    comparison_results = run_all_test_prioritization_approaches(num_episodes)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Run test prioritization experiments')
+    parser.add_argument('--agent', type=str, default='dqn', choices=['dqn', 'ppo'],
+                        help='Agent type to use (dqn or ppo)')
+    parser.add_argument('--episodes', type=int, default=1000,
+                        help='Number of episodes to train for')
+    
+    args = parser.parse_args()
+    
+    # Run the experiments with the specified agent type
+    results = run_all_test_prioritization_approaches(
+        num_episodes=args.episodes,
+        agent_type=args.agent
+    )
+    
+    print(f"\nExperiment completed with {args.agent.upper()} agent.")

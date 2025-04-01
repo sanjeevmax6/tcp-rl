@@ -19,3 +19,5 @@ travis-torrent/
 run_commands.sh
 .DS_Store
 .python-version
+src/python/services/models/
+src/python/services/figures/

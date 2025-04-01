@@ -759,7 +759,6 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         """Get metrics for all builds"""
         return self.build_metrics
 
-
 class PairwiseTestPrioritizationEnv(gym.Env):
     """Environment for pairwise test case prioritization using RL."""
     def __init__(self, build_data, feature_columns=None, fail_value=0, pass_values=[1, 2]):
