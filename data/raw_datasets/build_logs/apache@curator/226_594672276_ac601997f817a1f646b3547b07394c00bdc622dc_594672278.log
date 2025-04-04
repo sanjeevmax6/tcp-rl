@@ -1,177 +1,0 @@
-travis_fold:start:worker_info[0K[33;1mWorker information[0m
-hostname: 7e713c69-709b-4889-859e-67979ea16e37@1.worker-org-95567d544-82jck.gce-production-3
-version: v6.2.1 https://github.com/travis-ci/worker/tree/4e3246c044eb4915c2378ffacd0b3d3ed0136bba
-instance: travis-job-bdf6da28-9711-4b93-a1a1-5ff240042b38 travis-ci-sardonyx-xenial-1565528588-0c06deb6 (via amqp)
-startup: 6.536724163s
-travis_fold:end:worker_info[0Ktravis_time:start:0473110e[0Ktravis_time:end:0473110e:start=1570467166722176631,finish=1570467166915576596,duration=193399965,event=no_world_writable_dirs[0Ktravis_time:start:0f3d7874[0Ktravis_time:end:0f3d7874:start=1570467166920032100,finish=1570467166930170912,duration=10138812,event=agent[0Ktravis_time:start:16edce14[0Ktravis_time:end:16edce14:start=1570467166933861777,finish=1570467166936752971,duration=2891194,event=check_unsupported[0Ktravis_time:start:1fb95700[0Ktravis_fold:start:system_info[0K[33;1mBuild system information[0m
-Build language: java
-Build group: stable
-Build dist: xenial
-Build id: 594672276
-Job id: 594672278
-Runtime kernel version: 4.15.0-1037-gcp
-travis-build version: beba64be6
-[34m[1mBuild image provisioning date and time[0m
-Sun Aug 11 13:28:49 UTC 2019
-[34m[1mOperating System Details[0m
-Distributor ID:	Ubuntu
-Description:	Ubuntu 16.04.6 LTS
-Release:	16.04
-Codename:	xenial
-[34m[1mSystemd Version[0m
-systemd 229
-[34m[1mCookbooks Version[0m
-790f512 https://github.com/travis-ci/travis-cookbooks/tree/790f512
-[34m[1mgit version[0m
-git version 2.22.0
-[34m[1mbash version[0m
-GNU bash, version 4.3.48(1)-release (x86_64-pc-linux-gnu)
-[34m[1mgcc version[0m
-gcc (Ubuntu 5.4.0-6ubuntu1~16.04.11) 5.4.0 20160609
-[34m[1mdocker version[0m
-Client:
- Version:           18.06.0-ce
- API version:       1.38
- Go version:        go1.10.3
- Git commit:        0ffa825
- Built:             Wed Jul 18 19:11:02 2018
- OS/Arch:           linux/amd64
- Experimental:      false
-
-Server:
- Engine:
-  Version:          18.06.0-ce
-  API version:      1.38 (minimum version 1.12)
-  Go version:       go1.10.3
-  Git commit:       0ffa825
-  Built:            Wed Jul 18 19:09:05 2018
-  OS/Arch:          linux/amd64
-  Experimental:     false
-[34m[1mclang version[0m
-clang version 7.0.0 (tags/RELEASE_700/final)
-[34m[1mjq version[0m
-jq-1.5
-[34m[1mbats version[0m
-Bats 0.4.0
-[34m[1mshellcheck version[0m
-0.6.0
-[34m[1mshfmt version[0m
-v2.6.3
-[34m[1mccache version[0m
-3.2.4
-[34m[1mcmake version[0m
-cmake version 3.12.4
-[34m[1mheroku version[0m
-heroku/7.27.1 linux-x64 node-v11.14.0
-[34m[1mimagemagick version[0m
-Version: ImageMagick 6.8.9-9 Q16 x86_64 2019-06-15 http://www.imagemagick.org
-[34m[1mmd5deep version[0m
-4.4
-[34m[1mmercurial version[0m
-version 4.8
-[34m[1mmysql version[0m
-mysql  Ver 14.14 Distrib 5.7.27, for Linux (x86_64) using  EditLine wrapper
-[34m[1mopenssl version[0m
-OpenSSL 1.0.2g  1 Mar 2016
-[34m[1mpacker version[0m
-1.3.3
-[34m[1mpostgresql client version[0m
-psql (PostgreSQL) 10.10 (Ubuntu 10.10-1.pgdg16.04+1)
-[34m[1mragel version[0m
-Ragel State Machine Compiler version 6.8 Feb 2013
-[34m[1msudo version[0m
-1.8.16
-[34m[1mgzip version[0m
-gzip 1.6
-[34m[1mzip version[0m
-Zip 3.0
-[34m[1mvim version[0m
-VIM - Vi IMproved 7.4 (2013 Aug 10, compiled Jun 07 2019 15:35:43)
-[34m[1miptables version[0m
-iptables v1.6.0
-[34m[1mcurl version[0m
-curl 7.47.0 (x86_64-pc-linux-gnu) libcurl/7.47.0 GnuTLS/3.4.10 zlib/1.2.8 libidn/1.32 librtmp/2.3
-[34m[1mwget version[0m
-GNU Wget 1.17.1 built on linux-gnu.
-[34m[1mrsync version[0m
-rsync  version 3.1.1  protocol version 31
-[34m[1mgimme version[0m
-v1.5.3
-[34m[1mnvm version[0m
-0.34.0
-[34m[1mperlbrew version[0m
-/home/travis/perl5/perlbrew/bin/perlbrew  - App::perlbrew/0.86
-[34m[1mphpenv version[0m
-rbenv 1.1.2-2-g4e92322
-[34m[1mrvm version[0m
-rvm 1.29.9 (latest) by Michal Papis, Piotr Kuczynski, Wayne E. Seguin [https://rvm.io]
-[34m[1mdefault ruby version[0m
-ruby 2.5.3p105 (2018-10-18 revision 65156) [x86_64-linux]
-[34m[1mCouchDB version[0m
-couchdb 1.6.1
-[34m[1mElasticSearch version[0m
-5.5.0
-[34m[1mInstalled Firefox version[0m
-firefox 63.0.1
-[34m[1mMongoDB version[0m
-MongoDB 4.0.12
-[34m[1mPhantomJS version[0m
-2.1.1
-[34m[1mPre-installed PostgreSQL versions[0m
-9.4.24
-9.5.19
-9.6.15
-[34m[1mRedis version[0m
-redis-server 5.0.5
-[34m[1mPre-installed Go versions[0m
-1.11.1
-[34m[1mant version[0m
-Apache Ant(TM) version 1.9.6 compiled on July 20 2018
-[34m[1mmvn version[0m
-Apache Maven 3.6.0 (97c98ec64a1fdfee7767ce5ffb20918da4f719f3; 2018-10-24T18:41:47Z)
-[34m[1mgradle version[0m
-Gradle 5.1.1!
-[34m[1mlein version[0m
-Leiningen 2.9.1 on Java 11.0.2 OpenJDK 64-Bit Server VM
-[34m[1mPre-installed Node.js versions[0m
-v10.16.2
-v11.0.0
-v4.9.1
-v6.17.1
-v8.12.0
-v8.16.0
-v8.9
-[34m[1mphpenv versions[0m
-  system
-  5.6
-  5.6.40
-  7.1
-  7.1.27
-  7.2
-* 7.2.15 (set by /home/travis/.phpenv/version)
-  hhvm
-  hhvm-stable
-[34m[1mcomposer --version[0m
-Composer version 1.8.4 2019-02-11 10:52:10
-[34m[1mPre-installed Ruby versions[0m
-ruby-2.3.8
-ruby-2.4.5
-ruby-2.5.3
-travis_fold:end:system_info[0K
-travis_time:end:1fb95700:start=1570467166940422280,finish=1570467166949298596,duration=8876316,event=show_system_info[0Ktravis_time:start:021034cb[0Ktravis_time:end:021034cb:start=1570467166953158707,finish=1570467166972341516,duration=19182809,event=rm_riak_source[0Ktravis_time:start:070d7080[0Ktravis_time:end:070d7080:start=1570467166977289291,finish=1570467166984878539,duration=7589248,event=fix_rwky_redis[0Ktravis_time:start:027fc900[0Ktravis_time:end:027fc900:start=1570467166988850818,finish=1570467167337596520,duration=348745702,event=wait_for_network[0Ktravis_time:start:0462bdde[0Ktravis_time:end:0462bdde:start=1570467167341862963,finish=1570467167617279308,duration=275416345,event=update_apt_keys[0Ktravis_time:start:049de866[0Ktravis_time:end:049de866:start=1570467167621412581,finish=1570467167686972682,duration=65560101,event=fix_hhvm_source[0Ktravis_time:start:18774072[0Ktravis_time:end:18774072:start=1570467167690874587,finish=1570467167694198667,duration=3324080,event=update_mongo_arch[0Ktravis_time:start:149366bd[0Ktravis_time:end:149366bd:start=1570467167697862825,finish=1570467167748578838,duration=50716013,event=fix_sudo_enabled_trusty[0Ktravis_time:start:01060b30[0Ktravis_time:end:01060b30:start=1570467167752513694,finish=1570467167755354124,duration=2840430,event=update_glibc[0Ktravis_time:start:074b80ef[0Ktravis_time:end:074b80ef:start=1570467167759106930,finish=1570467167769161274,duration=10054344,event=clean_up_path[0Ktravis_time:start:1806413d[0Ktravis_time:end:1806413d:start=1570467167773164589,finish=1570467167783715524,duration=10550935,event=fix_resolv_conf[0Ktravis_time:start:0c73d810[0Ktravis_time:end:0c73d810:start=1570467167787655081,finish=1570467167799779500,duration=12124419,event=fix_etc_hosts[0Ktravis_time:start:0f9d9404[0Ktravis_time:end:0f9d9404:start=1570467167804024439,finish=1570467167815459453,duration=11435014,event=fix_mvn_settings_xml[0Ktravis_time:start:0af5ffb2[0Ktravis_time:end:0af5ffb2:start=1570467167819494772,finish=1570467167831876078,duration=12381306,event=no_ipv6_localhost[0Ktravis_time:start:1204d094[0Ktravis_time:end:1204d094:start=1570467167835912950,finish=1570467167838759572,duration=2846622,event=fix_etc_mavenrc[0Ktravis_time:start:148abe3f[0Ktravis_time:end:148abe3f:start=1570467167842527952,finish=1570467167846305931,duration=3777979,event=fix_wwdr_certificate[0Ktravis_time:start:21cd3400[0Ktravis_time:end:21cd3400:start=1570467167850047653,finish=1570467167879864729,duration=29817076,event=put_localhost_first[0Ktravis_time:start:190ccba8[0Ktravis_time:end:190ccba8:start=1570467167883935095,finish=1570467167887912870,duration=3977775,event=home_paths[0Ktravis_time:start:13e6176f[0Ktravis_time:end:13e6176f:start=1570467167891644828,finish=1570467167907117474,duration=15472646,event=disable_initramfs[0Ktravis_time:start:00083702[0Ktravis_time:end:00083702:start=1570467167910956158,finish=1570467168317215577,duration=406259419,event=disable_ssh_roaming[0Ktravis_time:start:060b4f76[0Ktravis_time:end:060b4f76:start=1570467168321578820,finish=1570467168324812758,duration=3233938,event=debug_tools[0Ktravis_time:start:02834da3[0Ktravis_time:end:02834da3:start=1570467168328974410,finish=1570467168333275868,duration=4301458,event=uninstall_oclint[0Ktravis_time:start:17d7e873[0Ktravis_time:end:17d7e873:start=1570467168337434607,finish=1570467168341467347,duration=4032740,event=rvm_use[0Ktravis_time:start:0f0f0f82[0Ktravis_time:end:0f0f0f82:start=1570467168345645609,finish=1570467168355952375,duration=10306766,event=rm_etc_boto_cfg[0Ktravis_time:start:00088716[0Ktravis_time:end:00088716:start=1570467168360025109,finish=1570467168365370053,duration=5344944,event=rm_oraclejdk8_symlink[0Ktravis_time:start:2084733d[0Ktravis_time:end:2084733d:start=1570467168369472532,finish=1570467168503997068,duration=134524536,event=enable_i386[0Ktravis_time:start:21b2279b[0Ktravis_time:end:21b2279b:start=1570467168508362717,finish=1570467168513337048,duration=4974331,event=update_rubygems[0Ktravis_time:start:113db63c[0Ktravis_time:end:113db63c:start=1570467168518014240,finish=1570467169508656315,duration=990642075,event=ensure_path_components[0Ktravis_time:start:2891d201[0Ktravis_time:end:2891d201:start=1570467169512886007,finish=1570467169515984989,duration=3098982,event=redefine_curl[0Ktravis_time:start:03326e0c[0Ktravis_time:end:03326e0c:start=1570467169519703198,finish=1570467169522786439,duration=3083241,event=nonblock_pipe[0Ktravis_time:start:1d26f639[0Ktravis_time:end:1d26f639:start=1570467169526605307,finish=1570467169587725852,duration=61120545,event=apt_get_update[0Ktravis_time:start:062f55d8[0Ktravis_time:end:062f55d8:start=1570467169592348859,finish=1570467169595742897,duration=3394038,event=deprecate_xcode_64[0Ktravis_time:start:06b1a4fa[0Ktravis_time:end:06b1a4fa:start=1570467169599921748,finish=1570467172491455943,duration=2891534195,event=update_heroku[0Ktravis_time:start:2fca437c[0Ktravis_time:end:2fca437c:start=1570467172496180898,finish=1570467172499092802,duration=2911904,event=shell_session_update[0Ktravis_time:start:191d57a4[0Ktravis_fold:start:docker_mtu[0Ktravis_fold:end:docker_mtu[0Ktravis_time:end:191d57a4:start=1570467172503104257,finish=1570467174859895452,duration=2356791195,event=set_docker_mtu[0Ktravis_time:start:19ece103[0Ktravis_fold:start:resolvconf[0Ktravis_fold:end:resolvconf[0Ktravis_time:end:19ece103:start=1570467174867150992,finish=1570467174954941247,duration=87790255,event=resolvconf[0Ktravis_time:start:2d4efd87[0Ktravis_time:end:2d4efd87:start=1570467174963198783,finish=1570467175171635500,duration=208436717,event=maven_central_mirror[0K
-travis_fold:start:install_jdk[0K[33;1mInstalling openjdk11[0m
-travis_fold:end:install_jdk[0Ktravis_time:start:046480a8[0Ktravis_time:end:046480a8:start=1570467175182081639,finish=1570467175185289554,duration=3207915,event=fix_ps4[0Ktravis_time:start:0aa8c680[0K
-travis_fold:start:git.checkout[0Ktravis_time:start:082880c4[0K$ git clone --depth=50 --branch=persistent-watcher-cache https://github.com/apache/curator.git apache/curator
-Cloning into 'apache/curator'...
-remote: Enumerating objects: 4320, done.[K
-remote: Counting objects:   0% (1/4320)[Kremote: Counting objects:   1% (44/4320)[Kremote: Counting objects:   2% (87/4320)[Kremote: Counting objects:   3% (130/4320)[Kremote: Counting objects:   4% (173/4320)[Kremote: Counting objects:   5% (216/4320)[Kremote: Counting objects:   6% (260/4320)[Kremote: Counting objects:   7% (303/4320)[Kremote: Counting objects:   8% (346/4320)[Kremote: Counting objects:   9% (389/4320)[Kremote: Counting objects:  10% (432/4320)[Kremote: Counting objects:  11% (476/4320)[Kremote: Counting objects:  12% (519/4320)[Kremote: Counting objects:  13% (562/4320)[Kremote: Counting objects:  14% (605/4320)[Kremote: Counting objects:  15% (648/4320)[Kremote: Counting objects:  16% (692/4320)[Kremote: Counting objects:  17% (735/4320)[Kremote: Counting objects:  18% (778/4320)[Kremote: Counting objects:  19% (821/4320)[Kremote: Counting objects:  20% (864/4320)[Kremote: Counting objects:  21% (908/4320)[Kremote: Counting objects:  22% (951/4320)[Kremote: Counting objects:  23% (994/4320)[Kremote: Counting objects:  24% (1037/4320)[Kremote: Counting objects:  25% (1080/4320)[Kremote: Counting objects:  26% (1124/4320)[Kremote: Counting objects:  27% (1167/4320)[Kremote: Counting objects:  28% (1210/4320)[Kremote: Counting objects:  29% (1253/4320)[Kremote: Counting objects:  30% (1296/4320)[Kremote: Counting objects:  31% (1340/4320)[Kremote: Counting objects:  32% (1383/4320)[Kremote: Counting objects:  33% (1426/4320)[Kremote: Counting objects:  34% (1469/4320)[Kremote: Counting objects:  35% (1512/4320)[Kremote: Counting objects:  36% (1556/4320)[Kremote: Counting objects:  37% (1599/4320)[Kremote: Counting objects:  38% (1642/4320)[Kremote: Counting objects:  39% (1685/4320)[Kremote: Counting objects:  40% (1728/4320)[Kremote: Counting objects:  41% (1772/4320)[Kremote: Counting objects:  42% (1815/4320)[Kremote: Counting objects:  43% (1858/4320)[Kremote: Counting objects:  44% (1901/4320)[Kremote: Counting objects:  45% (1944/4320)[Kremote: Counting objects:  46% (1988/4320)[Kremote: Counting objects:  47% (2031/4320)[Kremote: Counting objects:  48% (2074/4320)[Kremote: Counting objects:  49% (2117/4320)[Kremote: Counting objects:  50% (2160/4320)[Kremote: Counting objects:  51% (2204/4320)[Kremote: Counting objects:  52% (2247/4320)[Kremote: Counting objects:  53% (2290/4320)[Kremote: Counting objects:  54% (2333/4320)[Kremote: Counting objects:  55% (2376/4320)[Kremote: Counting objects:  56% (2420/4320)[Kremote: Counting objects:  57% (2463/4320)[Kremote: Counting objects:  58% (2506/4320)[Kremote: Counting objects:  59% (2549/4320)[Kremote: Counting objects:  60% (2592/4320)[Kremote: Counting objects:  61% (2636/4320)[Kremote: Counting objects:  62% (2679/4320)[Kremote: Counting objects:  63% (2722/4320)[Kremote: Counting objects:  64% (2765/4320)[Kremote: Counting objects:  65% (2808/4320)[Kremote: Counting objects:  66% (2852/4320)[Kremote: Counting objects:  67% (2895/4320)[Kremote: Counting objects:  68% (2938/4320)[Kremote: Counting objects:  69% (2981/4320)[Kremote: Counting objects:  70% (3024/4320)[Kremote: Counting objects:  71% (3068/4320)[Kremote: Counting objects:  72% (3111/4320)[Kremote: Counting objects:  73% (3154/4320)[Kremote: Counting objects:  74% (3197/4320)[Kremote: Counting objects:  75% (3240/4320)[Kremote: Counting objects:  76% (3284/4320)[Kremote: Counting objects:  77% (3327/4320)[Kremote: Counting objects:  78% (3370/4320)[Kremote: Counting objects:  79% (3413/4320)[Kremote: Counting objects:  80% (3456/4320)[Kremote: Counting objects:  81% (3500/4320)[Kremote: Counting objects:  82% (3543/4320)[Kremote: Counting objects:  83% (3586/4320)[Kremote: Counting objects:  84% (3629/4320)[Kremote: Counting objects:  85% (3672/4320)[Kremote: Counting objects:  86% (3716/4320)[Kremote: Counting objects:  87% (3759/4320)[Kremote: Counting objects:  88% (3802/4320)[Kremote: Counting objects:  89% (3845/4320)[Kremote: Counting objects:  90% (3888/4320)[Kremote: Counting objects:  91% (3932/4320)[Kremote: Counting objects:  92% (3975/4320)[Kremote: Counting objects:  93% (4018/4320)[Kremote: Counting objects:  94% (4061/4320)[Kremote: Counting objects:  95% (4104/4320)[Kremote: Counting objects:  96% (4148/4320)[Kremote: Counting objects:  97% (4191/4320)[Kremote: Counting objects:  98% (4234/4320)[Kremote: Counting objects:  99% (4277/4320)[Kremote: Counting objects: 100% (4320/4320)[Kremote: Counting objects: 100% (4320/4320), done.[K
-remote: Compressing objects:   0% (1/1827)[Kremote: Compressing objects:   1% (19/1827)[Kremote: Compressing objects:   2% (37/1827)[Kremote: Compressing objects:   3% (55/1827)[Kremote: Compressing objects:   4% (74/1827)[Kremote: Compressing objects:   5% (92/1827)[Kremote: Compressing objects:   6% (110/1827)[Kremote: Compressing objects:   7% (128/1827)[Kremote: Compressing objects:   8% (147/1827)[Kremote: Compressing objects:   9% (165/1827)[Kremote: Compressing objects:  10% (183/1827)[Kremote: Compressing objects:  11% (201/1827)[Kremote: Compressing objects:  12% (220/1827)[Kremote: Compressing objects:  13% (238/1827)[Kremote: Compressing objects:  14% (256/1827)[Kremote: Compressing objects:  15% (275/1827)[Kremote: Compressing objects:  16% (293/1827)[Kremote: Compressing objects:  17% (311/1827)[Kremote: Compressing objects:  18% (329/1827)[Kremote: Compressing objects:  19% (348/1827)[Kremote: Compressing objects:  20% (366/1827)[Kremote: Compressing objects:  21% (384/1827)[Kremote: Compressing objects:  22% (402/1827)[Kremote: Compressing objects:  23% (421/1827)[Kremote: Compressing objects:  24% (439/1827)[Kremote: Compressing objects:  25% (457/1827)[Kremote: Compressing objects:  26% (476/1827)[Kremote: Compressing objects:  27% (494/1827)[Kremote: Compressing objects:  28% (512/1827)[Kremote: Compressing objects:  29% (530/1827)[Kremote: Compressing objects:  30% (549/1827)[Kremote: Compressing objects:  31% (567/1827)[Kremote: Compressing objects:  32% (585/1827)[Kremote: Compressing objects:  33% (603/1827)[Kremote: Compressing objects:  34% (622/1827)[Kremote: Compressing objects:  35% (640/1827)[Kremote: Compressing objects:  36% (658/1827)[Kremote: Compressing objects:  37% (676/1827)[Kremote: Compressing objects:  38% (695/1827)[Kremote: Compressing objects:  39% (713/1827)[Kremote: Compressing objects:  40% (731/1827)[Kremote: Compressing objects:  41% (750/1827)[Kremote: Compressing objects:  42% (768/1827)[Kremote: Compressing objects:  43% (786/1827)[Kremote: Compressing objects:  44% (804/1827)[Kremote: Compressing objects:  45% (823/1827)[Kremote: Compressing objects:  46% (841/1827)[Kremote: Compressing objects:  47% (859/1827)[Kremote: Compressing objects:  48% (877/1827)[Kremote: Compressing objects:  49% (896/1827)[Kremote: Compressing objects:  50% (914/1827)[Kremote: Compressing objects:  51% (932/1827)[Kremote: Compressing objects:  52% (951/1827)[Kremote: Compressing objects:  53% (969/1827)[Kremote: Compressing objects:  54% (987/1827)[Kremote: Compressing objects:  55% (1005/1827)[Kremote: Compressing objects:  56% (1024/1827)[Kremote: Compressing objects:  57% (1042/1827)[Kremote: Compressing objects:  58% (1060/1827)[Kremote: Compressing objects:  59% (1078/1827)[Kremote: Compressing objects:  60% (1097/1827)[Kremote: Compressing objects:  61% (1115/1827)[Kremote: Compressing objects:  62% (1133/1827)[Kremote: Compressing objects:  63% (1152/1827)[Kremote: Compressing objects:  64% (1170/1827)[Kremote: Compressing objects:  65% (1188/1827)[Kremote: Compressing objects:  66% (1206/1827)[Kremote: Compressing objects:  67% (1225/1827)[Kremote: Compressing objects:  68% (1243/1827)[Kremote: Compressing objects:  69% (1261/1827)[Kremote: Compressing objects:  70% (1279/1827)[Kremote: Compressing objects:  71% (1298/1827)[Kremote: Compressing objects:  72% (1316/1827)[Kremote: Compressing objects:  73% (1334/1827)[Kremote: Compressing objects:  74% (1352/1827)[Kremote: Compressing objects:  75% (1371/1827)[Kremote: Compressing objects:  76% (1389/1827)[Kremote: Compressing objects:  77% (1407/1827)[Kremote: Compressing objects:  78% (1426/1827)[Kremote: Compressing objects:  79% (1444/1827)[Kremote: Compressing objects:  80% (1462/1827)[Kremote: Compressing objects:  81% (1480/1827)[Kremote: Compressing objects:  82% (1499/1827)[Kremote: Compressing objects:  83% (1517/1827)[Kremote: Compressing objects:  84% (1535/1827)[Kremote: Compressing objects:  85% (1553/1827)[Kremote: Compressing objects:  86% (1572/1827)[Kremote: Compressing objects:  87% (1590/1827)[Kremote: Compressing objects:  88% (1608/1827)[Kremote: Compressing objects:  89% (1627/1827)[Kremote: Compressing objects:  90% (1645/1827)[Kremote: Compressing objects:  91% (1663/1827)[Kremote: Compressing objects:  92% (1681/1827)[Kremote: Compressing objects:  93% (1700/1827)[Kremote: Compressing objects:  94% (1718/1827)[Kremote: Compressing objects:  95% (1736/1827)[Kremote: Compressing objects:  96% (1754/1827)[Kremote: Compressing objects:  97% (1773/1827)[Kremote: Compressing objects:  98% (1791/1827)[Kremote: Compressing objects:  99% (1809/1827)[Kremote: Compressing objects: 100% (1827/1827)[Kremote: Compressing objects: 100% (1827/1827), done.[K
-Receiving objects:   0% (1/4320)Receiving objects:   1% (44/4320)Receiving objects:   2% (87/4320)Receiving objects:   3% (130/4320)Receiving objects:   4% (173/4320)Receiving objects:   5% (216/4320)Receiving objects:   6% (260/4320)Receiving objects:   7% (303/4320)Receiving objects:   8% (346/4320)Receiving objects:   9% (389/4320)Receiving objects:  10% (432/4320)Receiving objects:  11% (476/4320)Receiving objects:  12% (519/4320)Receiving objects:  13% (562/4320)Receiving objects:  14% (605/4320)Receiving objects:  15% (648/4320)Receiving objects:  16% (692/4320)Receiving objects:  17% (735/4320)Receiving objects:  18% (778/4320)Receiving objects:  19% (821/4320)Receiving objects:  20% (864/4320)Receiving objects:  21% (908/4320)Receiving objects:  22% (951/4320)Receiving objects:  23% (994/4320)Receiving objects:  24% (1037/4320)Receiving objects:  25% (1080/4320)Receiving objects:  26% (1124/4320)Receiving objects:  27% (1167/4320)Receiving objects:  28% (1210/4320)Receiving objects:  29% (1253/4320)Receiving objects:  30% (1296/4320)Receiving objects:  31% (1340/4320)Receiving objects:  32% (1383/4320)Receiving objects:  33% (1426/4320)Receiving objects:  34% (1469/4320)Receiving objects:  35% (1512/4320)Receiving objects:  36% (1556/4320)Receiving objects:  37% (1599/4320)Receiving objects:  38% (1642/4320)Receiving objects:  39% (1685/4320)Receiving objects:  40% (1728/4320)Receiving objects:  41% (1772/4320)Receiving objects:  42% (1815/4320)Receiving objects:  43% (1858/4320)Receiving objects:  44% (1901/4320)Receiving objects:  45% (1944/4320)Receiving objects:  46% (1988/4320)Receiving objects:  47% (2031/4320)Receiving objects:  48% (2074/4320)Receiving objects:  49% (2117/4320)Receiving objects:  50% (2160/4320)Receiving objects:  51% (2204/4320)Receiving objects:  52% (2247/4320)Receiving objects:  53% (2290/4320)Receiving objects:  54% (2333/4320)Receiving objects:  55% (2376/4320)Receiving objects:  56% (2420/4320)Receiving objects:  57% (2463/4320)Receiving objects:  58% (2506/4320)Receiving objects:  59% (2549/4320)Receiving objects:  60% (2592/4320)Receiving objects:  61% (2636/4320)Receiving objects:  62% (2679/4320)Receiving objects:  63% (2722/4320)Receiving objects:  64% (2765/4320)Receiving objects:  65% (2808/4320)Receiving objects:  66% (2852/4320)Receiving objects:  67% (2895/4320)Receiving objects:  68% (2938/4320)Receiving objects:  69% (2981/4320)Receiving objects:  70% (3024/4320)Receiving objects:  71% (3068/4320)Receiving objects:  72% (3111/4320)Receiving objects:  73% (3154/4320)Receiving objects:  74% (3197/4320)Receiving objects:  75% (3240/4320)Receiving objects:  76% (3284/4320)Receiving objects:  77% (3327/4320)Receiving objects:  78% (3370/4320)Receiving objects:  79% (3413/4320)Receiving objects:  80% (3456/4320)Receiving objects:  81% (3500/4320)Receiving objects:  82% (3543/4320)Receiving objects:  83% (3586/4320)Receiving objects:  84% (3629/4320)Receiving objects:  85% (3672/4320)Receiving objects:  86% (3716/4320)Receiving objects:  87% (3759/4320)Receiving objects:  88% (3802/4320)remote: Total 4320 (delta 1838), reused 3507 (delta 1291), pack-reused 0
-Receiving objects:  89% (3845/4320)Receiving objects:  90% (3888/4320)Receiving objects:  91% (3932/4320)Receiving objects:  92% (3975/4320)Receiving objects:  93% (4018/4320)Receiving objects:  94% (4061/4320)Receiving objects:  95% (4104/4320)Receiving objects:  96% (4148/4320)Receiving objects:  97% (4191/4320)Receiving objects:  98% (4234/4320)Receiving objects:  99% (4277/4320)Receiving objects: 100% (4320/4320)Receiving objects: 100% (4320/4320), 1.09 MiB | 9.91 MiB/s, done.
-Resolving deltas:   0% (0/1838)Resolving deltas:   2% (49/1838)Resolving deltas:   3% (57/1838)Resolving deltas:   4% (76/1838)Resolving deltas:   5% (99/1838)Resolving deltas:   6% (118/1838)Resolving deltas:   7% (130/1838)Resolving deltas:   8% (149/1838)Resolving deltas:   9% (176/1838)Resolving deltas:  10% (188/1838)Resolving deltas:  11% (204/1838)Resolving deltas:  12% (221/1838)Resolving deltas:  13% (249/1838)Resolving deltas:  14% (259/1838)Resolving deltas:  15% (282/1838)Resolving deltas:  16% (296/1838)Resolving deltas:  17% (324/1838)Resolving deltas:  19% (352/1838)Resolving deltas:  20% (371/1838)Resolving deltas:  21% (386/1838)Resolving deltas:  22% (409/1838)Resolving deltas:  23% (430/1838)Resolving deltas:  24% (454/1838)Resolving deltas:  25% (460/1838)Resolving deltas:  26% (483/1838)Resolving deltas:  27% (499/1838)Resolving deltas:  31% (587/1838)Resolving deltas:  33% (611/1838)Resolving deltas:  34% (627/1838)Resolving deltas:  35% (648/1838)Resolving deltas:  36% (662/1838)Resolving deltas:  37% (684/1838)Resolving deltas:  38% (710/1838)Resolving deltas:  39% (725/1838)Resolving deltas:  40% (740/1838)Resolving deltas:  41% (760/1838)Resolving deltas:  42% (775/1838)Resolving deltas:  43% (792/1838)Resolving deltas:  44% (810/1838)Resolving deltas:  45% (828/1838)Resolving deltas:  46% (855/1838)Resolving deltas:  47% (880/1838)Resolving deltas:  48% (887/1838)Resolving deltas:  49% (911/1838)Resolving deltas:  51% (944/1838)Resolving deltas:  52% (964/1838)Resolving deltas:  54% (993/1838)Resolving deltas:  55% (1012/1838)Resolving deltas:  56% (1030/1838)Resolving deltas:  58% (1074/1838)Resolving deltas:  59% (1085/1838)Resolving deltas:  60% (1120/1838)Resolving deltas:  61% (1127/1838)Resolving deltas:  62% (1144/1838)Resolving deltas:  63% (1166/1838)Resolving deltas:  64% (1183/1838)Resolving deltas:  66% (1216/1838)Resolving deltas:  67% (1234/1838)Resolving deltas:  68% (1252/1838)Resolving deltas:  69% (1283/1838)Resolving deltas:  70% (1290/1838)Resolving deltas:  71% (1308/1838)Resolving deltas:  72% (1336/1838)Resolving deltas:  73% (1342/1838)Resolving deltas:  74% (1378/1838)Resolving deltas:  75% (1385/1838)Resolving deltas:  76% (1406/1838)Resolving deltas:  77% (1419/1838)Resolving deltas:  78% (1434/1838)Resolving deltas:  79% (1455/1838)Resolving deltas:  80% (1472/1838)Resolving deltas:  81% (1495/1838)Resolving deltas:  82% (1518/1838)Resolving deltas:  83% (1528/1838)Resolving deltas:  84% (1545/1838)Resolving deltas:  85% (1565/1838)Resolving deltas:  86% (1581/1838)Resolving deltas:  87% (1600/1838)Resolving deltas:  88% (1618/1838)Resolving deltas:  89% (1640/1838)Resolving deltas:  91% (1673/1838)Resolving deltas:  92% (1691/1838)Resolving deltas:  93% (1712/1838)Resolving deltas:  94% (1729/1838)Resolving deltas:  95% (1751/1838)Resolving deltas:  96% (1765/1838)Resolving deltas:  97% (1783/1838)Resolving deltas:  98% (1803/1838)Resolving deltas: 100% (1838/1838)Resolving deltas: 100% (1838/1838), done.
-travis_time:end:082880c4:start=1570467175194258739,finish=1570467176174423486,duration=980164747,event=checkout[0K$ cd apache/curator
-$ git checkout -qf ac601997f817a1f646b3547b07394c00bdc622dc
-fatal: reference is not a tree: ac601997f817a1f646b3547b07394c00bdc622dc
-[31;1mThe command "git checkout -qf ac601997f817a1f646b3547b07394c00bdc622dc" failed and exited with 128 during .[0m
-
-Your build has been stopped.
