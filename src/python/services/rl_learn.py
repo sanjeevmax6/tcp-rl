@@ -240,156 +240,6 @@ def train_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_frequency
         'final_env_metrics': env.get_build_metrics()
     }
 
-def train_ppo(env, agent, num_episodes=1000, eval_frequency=100, 
-              save_dir='models', model_name='ppo_model.zip'):
-    """
-    Train the PPO agent.
-    
-    Args:
-        env: Environment
-        agent: PPO agent
-        num_episodes: Number of episodes to train for
-        eval_frequency: How often to evaluate the agent
-        save_dir: Directory to save the model
-        model_name: Name of the model file
-        
-    Returns:
-        Dictionary of training metrics.
-    """
-    # Create save directory if it doesn't exist
-    os.makedirs(save_dir, exist_ok=True)
-    
-    # Track metrics
-    episode_rewards = []
-    episode_apfds = []
-    episode_improvements = []
-    episode_build_ids = [] 
-    build_metrics = {}
-    
-    # Add dictionaries to track per-build metrics
-    build_apfd_history = {}
-    build_improvement_history = {}
-    
-    # Calculate timesteps based on episodes and environment complexity
-    # For PPO, we need to use timesteps instead of episodes
-    avg_episode_length = 50  # Estimate average episode length
-    total_timesteps = num_episodes * avg_episode_length
-    
-    # Create the environment with PPO
-    agent.set_env(env)
-    
-    # Training loop
-    start_time = time.time()
-    best_avg_improvement = -float('inf')
-    
-    print(f"Starting PPO training for approximately {num_episodes} episodes...")
-    
-    # Train in batches to allow for evaluation
-    timesteps_per_batch = total_timesteps // (num_episodes // eval_frequency)
-    batches = total_timesteps // timesteps_per_batch
-    
-    for batch in range(batches):
-        # Train for a batch of timesteps
-        agent.learn(total_timesteps=timesteps_per_batch)
-        
-        # Evaluate the agent
-        current_episode = batch * eval_frequency
-        
-        # Reset environment to evaluate
-        state = env.reset()
-        build_id = env.current_build
-        done = False
-        episode_reward = 0
-        
-        # Run one episode for evaluation
-        while not done:
-            action = agent.act(state)
-            next_state, reward, done, info = env.step(action)
-            state = next_state
-            episode_reward += reward
-        
-        # Get build metrics
-        build_id = info['build_id']
-        episode_build_ids.append(build_id) 
-        apfd = env.build_metrics[build_id]['apfd']
-        improvement = env.build_metrics[build_id]['improvement']
-        
-        # Store metrics
-        episode_rewards.append(episode_reward)
-        episode_apfds.append(apfd)
-        episode_improvements.append(improvement)
-        
-        # Store build metrics
-        if build_id not in build_metrics:
-            build_metrics[build_id] = []
-        build_metrics[build_id].append(env.build_metrics[build_id].copy())
-        
-        # Store per-build history metrics
-        if build_id not in build_apfd_history:
-            build_apfd_history[build_id] = []
-            build_improvement_history[build_id] = []
-            
-        build_apfd_history[build_id].append(apfd)
-        build_improvement_history[build_id].append(improvement)
-        
-        # Print progress
-        elapsed = time.time() - start_time
-        print(f"Batch {batch+1}/{batches}, APFD: {apfd:.4f}, "
-              f"Improvement: {improvement:.4f}, Time: {elapsed:.1f}s")
-        
-        # Find builds with failures for evaluation
-        builds_with_failures = []
-        for b_id, df in env.build_data.items():
-            if 'Verdict' in df.columns:
-                failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
-                if failures > 0:
-                    builds_with_failures.append(b_id)
-        
-        eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
-        eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
-        avg_apfd = eval_results['avg_apfd']
-        avg_improvement = eval_results['avg_improvement']
-        
-        print(f"\nEvaluation at batch {batch+1}")
-        print(f"Avg APFD: {avg_apfd:.4f}, Avg Improvement: {avg_improvement:.4f}")
-        
-        # Save the model if it's the best so far
-        if avg_improvement > best_avg_improvement:
-            best_avg_improvement = avg_improvement
-            agent.save(os.path.join(save_dir, f"best_{model_name}"))
-            print(f"Saved best model with avg improvement: {best_avg_improvement:.4f}")
-    
-    # Save the final model
-    agent.save(os.path.join(save_dir, model_name))
-    print(f"Saved final model to {os.path.join(save_dir, model_name)}")
-    
-    # Save metrics to CSV
-    metrics_df = pd.DataFrame({
-        'Batch': range(len(episode_rewards)),
-        'Build': episode_build_ids,
-        'Reward': episode_rewards,
-        'APFD': episode_apfds,
-        'Improvement': episode_improvements
-    })
-    
-    metrics_csv_path = os.path.join(save_dir, f'ppo_training_metrics{os.path.basename(model_name).replace(".zip", "")}.csv')
-    metrics_df.to_csv(metrics_csv_path, index=False)
-    
-    # Visualize build learning
-    visualize_build_learning(build_apfd_history, build_improvement_history, save_dir)
-    
-    # Return training metrics
-    return {
-        'episode_rewards': episode_rewards,
-        'episode_apfds': episode_apfds,
-        'episode_improvements': episode_improvements,
-        'episode_build_ids': episode_build_ids,
-        'build_metrics': build_metrics,
-        'build_apfd_history': build_apfd_history,
-        'build_improvement_history': build_improvement_history,
-        'final_env_metrics': env.get_build_metrics()
-    }
-
 # Fix for data preprocessing
 def fix_verdict_types(build_data, fail_value=0):
     """Ensure verdict values are properly represented in the data"""
@@ -944,6 +794,310 @@ def train_pointwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval
         'final_env_metrics': env.get_build_metrics()
     }
 
+
+def train_ppo(env, agent, num_episodes=1000, eval_frequency=100, 
+              save_dir='models', model_name='ppo_model.zip'):
+    """
+    Train the PPO agent.
+    
+    Args:
+        env: Environment
+        agent: PPO agent
+        num_episodes: Number of episodes to train for
+        eval_frequency: How often to evaluate the agent
+        save_dir: Directory to save the model
+        model_name: Name of the model file
+        
+    Returns:
+        Dictionary of training metrics.
+    """
+    # Create save directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Track metrics
+    episode_rewards = []
+    episode_apfds = []
+    episode_improvements = []
+    episode_build_ids = [] 
+    build_metrics = {}
+    
+    # Add dictionaries to track per-build metrics
+    build_apfd_history = {}
+    build_improvement_history = {}
+    
+    # Calculate timesteps based on episodes and environment complexity
+    # For PPO, we need to use timesteps instead of episodes
+    avg_episode_length = 50  # Estimate average episode length
+    total_timesteps = num_episodes * avg_episode_length
+    
+    # Create the environment with PPO
+    agent.set_env(env)
+    
+    # Training loop
+    start_time = time.time()
+    best_avg_improvement = -float('inf')
+    
+    print(f"Starting PPO training for approximately {num_episodes} episodes...")
+    
+    # Train in batches to allow for evaluation
+    timesteps_per_batch = total_timesteps // (num_episodes // eval_frequency)
+    batches = total_timesteps // timesteps_per_batch
+    
+    for batch in range(batches):
+        # Train for a batch of timesteps
+        agent.learn(total_timesteps=timesteps_per_batch)
+        
+        # Evaluate the agent
+        current_episode = batch * eval_frequency
+        
+        # Reset environment to evaluate
+        state = env.reset()
+        build_id = env.current_build
+        done = False
+        episode_reward = 0
+        
+        # Run one episode for evaluation
+        while not done:
+            action = agent.act(state)
+            next_state, reward, done, info = env.step(action)
+            state = next_state
+            episode_reward += reward
+        
+        # Get build metrics
+        build_id = info['build_id']
+        episode_build_ids.append(build_id) 
+        apfd = env.build_metrics[build_id]['apfd']
+        improvement = env.build_metrics[build_id]['improvement']
+        
+        # Store metrics
+        episode_rewards.append(episode_reward)
+        episode_apfds.append(apfd)
+        episode_improvements.append(improvement)
+        
+        # Store build metrics
+        if build_id not in build_metrics:
+            build_metrics[build_id] = []
+        build_metrics[build_id].append(env.build_metrics[build_id].copy())
+        
+        # Store per-build history metrics
+        if build_id not in build_apfd_history:
+            build_apfd_history[build_id] = []
+            build_improvement_history[build_id] = []
+            
+        build_apfd_history[build_id].append(apfd)
+        build_improvement_history[build_id].append(improvement)
+        
+        # Print progress
+        elapsed = time.time() - start_time
+        print(f"Batch {batch+1}/{batches}, APFD: {apfd:.4f}, "
+              f"Improvement: {improvement:.4f}, Time: {elapsed:.1f}s")
+        
+        # Find builds with failures for evaluation
+        builds_with_failures = []
+        for b_id, df in env.build_data.items():
+            if 'Verdict' in df.columns:
+                failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
+                if failures > 0:
+                    builds_with_failures.append(b_id)
+        
+        eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
+        eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
+        avg_apfd = eval_results['avg_apfd']
+        avg_improvement = eval_results['avg_improvement']
+        
+        print(f"\nEvaluation at batch {batch+1}")
+        print(f"Avg APFD: {avg_apfd:.4f}, Avg Improvement: {avg_improvement:.4f}")
+        
+        # Save the model if it's the best so far
+        if avg_improvement > best_avg_improvement:
+            best_avg_improvement = avg_improvement
+            agent.save(os.path.join(save_dir, f"best_{model_name}"))
+            print(f"Saved best model with avg improvement: {best_avg_improvement:.4f}")
+    
+    # Save the final model
+    agent.save(os.path.join(save_dir, model_name))
+    print(f"Saved final model to {os.path.join(save_dir, model_name)}")
+    
+    # Save metrics to CSV
+    metrics_df = pd.DataFrame({
+        'Batch': range(len(episode_rewards)),
+        'Build': episode_build_ids,
+        'Reward': episode_rewards,
+        'APFD': episode_apfds,
+        'Improvement': episode_improvements
+    })
+    
+    metrics_csv_path = os.path.join(save_dir, f'ppo_training_metrics{os.path.basename(model_name).replace(".zip", "")}.csv')
+    metrics_df.to_csv(metrics_csv_path, index=False)
+    
+    # Visualize build learning
+    visualize_build_learning(build_apfd_history, build_improvement_history, save_dir)
+    
+    # Return training metrics
+    return {
+        'episode_rewards': episode_rewards,
+        'episode_apfds': episode_apfds,
+        'episode_improvements': episode_improvements,
+        'episode_build_ids': episode_build_ids,
+        'build_metrics': build_metrics,
+        'build_apfd_history': build_apfd_history,
+        'build_improvement_history': build_improvement_history,
+        'final_env_metrics': env.get_build_metrics()
+    }
+
+
+def train_a2c(env, agent, num_episodes=1000, eval_frequency=100, 
+             save_dir='models', model_name='a2c_model.zip'):
+    """
+    Train the A2C agent.
+    
+    Args:
+        env: Environment
+        agent: A2C agent
+        num_episodes: Number of episodes to train for
+        eval_frequency: How often to evaluate the agent
+        save_dir: Directory to save the model
+        model_name: Name of the model file
+        
+    Returns:
+        Dictionary of training metrics.
+    """
+    # Create save directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Track metrics
+    episode_rewards = []
+    episode_apfds = []
+    episode_improvements = []
+    episode_build_ids = [] 
+    build_metrics = {}
+    
+    # Add dictionaries to track per-build metrics
+    build_apfd_history = {}
+    build_improvement_history = {}
+    
+    # Calculate timesteps based on episodes and environment complexity
+    # For A2C, we need to use timesteps instead of episodes
+    avg_episode_length = 50  # Estimate average episode length
+    total_timesteps = num_episodes * avg_episode_length
+    
+    # Initialize the agent with the environment
+    print("Setting up A2C agent...")
+    agent.set_env(env)
+    
+    # Training loop
+    start_time = time.time()
+    best_avg_improvement = -float('inf')
+    
+    print(f"Starting A2C training for approximately {num_episodes} episodes...")
+    
+    # Train in batches to allow for evaluation
+    timesteps_per_batch = total_timesteps // (num_episodes // eval_frequency)
+    batches = total_timesteps // timesteps_per_batch
+    
+    for batch in range(batches):
+        print(f"Training batch {batch+1}/{batches}...")
+        # Train for a batch of timesteps
+        agent.learn(total_timesteps=timesteps_per_batch)
+        
+        # Evaluate the agent
+        current_episode = batch * eval_frequency
+        
+        # Reset environment to evaluate
+        state = env.reset()
+        build_id = env.current_build
+        done = False
+        episode_reward = 0
+        
+        # Run one episode for evaluation
+        while not done:
+            action = agent.act(state)
+            next_state, reward, done, info = env.step(action)
+            state = next_state
+            episode_reward += reward
+        
+        # Get build metrics
+        build_id = info['build_id']
+        episode_build_ids.append(build_id) 
+        apfd = env.build_metrics[build_id]['apfd']
+        improvement = env.build_metrics[build_id]['improvement']
+        
+        # Store metrics
+        episode_rewards.append(episode_reward)
+        episode_apfds.append(apfd)
+        episode_improvements.append(improvement)
+        
+        # Store build metrics
+        if build_id not in build_metrics:
+            build_metrics[build_id] = []
+        build_metrics[build_id].append(env.build_metrics[build_id].copy())
+        
+        # Store per-build history metrics
+        if build_id not in build_apfd_history:
+            build_apfd_history[build_id] = []
+            build_improvement_history[build_id] = []
+            
+        build_apfd_history[build_id].append(apfd)
+        build_improvement_history[build_id].append(improvement)
+        
+        # Print progress
+        elapsed = time.time() - start_time
+        print(f"Batch {batch+1}/{batches}, APFD: {apfd:.4f}, "
+              f"Improvement: {improvement:.4f}, Time: {elapsed:.1f}s")
+        
+        # Find builds with failures for evaluation
+        builds_with_failures = []
+        for b_id, df in env.build_data.items():
+            if 'Verdict' in df.columns:
+                failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
+                if failures > 0:
+                    builds_with_failures.append(b_id)
+        
+        eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
+        eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
+        avg_apfd = eval_results['avg_apfd']
+        avg_improvement = eval_results['avg_improvement']
+        
+        print(f"\nEvaluation at batch {batch+1}")
+        print(f"Avg APFD: {avg_apfd:.4f}, Avg Improvement: {avg_improvement:.4f}")
+        
+        # Save the model if it's the best so far
+        if avg_improvement > best_avg_improvement:
+            best_avg_improvement = avg_improvement
+            agent.save(os.path.join(save_dir, f"best_{model_name}"))
+            print(f"Saved best model with avg improvement: {best_avg_improvement:.4f}")
+    
+    # Save the final model
+    agent.save(os.path.join(save_dir, model_name))
+    print(f"Saved final model to {os.path.join(save_dir, model_name)}")
+    
+    # Save metrics to CSV
+    metrics_df = pd.DataFrame({
+        'Batch': range(len(episode_rewards)),
+        'Build': episode_build_ids,
+        'Reward': episode_rewards,
+        'APFD': episode_apfds,
+        'Improvement': episode_improvements
+    })
+    
+    metrics_csv_path = os.path.join(save_dir, f'a2c_training_metrics{os.path.basename(model_name).replace(".zip", "")}.csv')
+    metrics_df.to_csv(metrics_csv_path, index=False)
+    
+    # Visualize build learning
+    visualize_build_learning(build_apfd_history, build_improvement_history, save_dir)
+    
+    # Return training metrics
+    return {
+        'episode_rewards': episode_rewards,
+        'episode_apfds': episode_apfds,
+        'episode_improvements': episode_improvements,
+        'episode_build_ids': episode_build_ids,
+        'build_metrics': build_metrics,
+        'build_apfd_history': build_apfd_history,
+        'build_improvement_history': build_improvement_history,
+        'final_env_metrics': env.get_build_metrics()
+    }
+
 def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
     """
     Run and compare test prioritization approaches with either DQN or PPO agents.
@@ -1038,7 +1192,7 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
             save_dir=comparison_dir,
             model_name=listwise_model_name
         )
-    else:  # PPO
+    elif agent_type.lower() == "ppo":  # PPO
         from ppo import PPOAgent
         listwise_agent = PPOAgent(
             state_size=listwise_state_size,
@@ -1052,6 +1206,28 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
         print(f"Training the listwise PPO agent for {num_episodes} episodes...")
         listwise_model_name = f'listwise_ppo{episode_postfix}.zip'
         listwise_metrics = train_ppo(
+            env=listwise_env,
+            agent=listwise_agent,
+            num_episodes=num_episodes,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=listwise_model_name
+        )
+    
+    elif agent_type.lower() == "a2c":
+        from a2c import A2CAgent
+        listwise_agent = A2CAgent(
+            state_size=listwise_state_size,
+            action_size=listwise_env.max_tests,
+            hidden_dim=64,  # Smaller network for faster training
+            learning_rate=0.0007,
+            gamma=0.99
+        )
+        
+        # Train the agent
+        print(f"Training the listwise A2C agent for {num_episodes} episodes...")
+        listwise_model_name = f'listwise_a2c{episode_postfix}.zip'
+        listwise_metrics = train_a2c(  # Create this function similar to train_ppo
             env=listwise_env,
             agent=listwise_agent,
             num_episodes=num_episodes,
@@ -1141,8 +1317,8 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Run test prioritization experiments')
-    parser.add_argument('--agent', type=str, default='dqn', choices=['dqn', 'ppo'],
-                        help='Agent type to use (dqn or ppo)')
+    parser.add_argument('--agent', type=str, default='dqn', choices=['dqn', 'ppo', 'a2c'],
+                        help='Agent type to use (dqn or or ppo or a2c)')
     parser.add_argument('--episodes', type=int, default=1000,
                         help='Number of episodes to train for')
     

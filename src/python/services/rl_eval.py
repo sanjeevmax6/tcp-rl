@@ -202,18 +202,18 @@ def visualize_build_learning(build_apfd_history, build_improvement_history, save
 def evaluate_agent(env, agent, build_ids=None, num_builds=10):
     """
     Evaluate an agent on specific builds.
-    Generic function that works with both DQN and PPO agents.
+    Generic function that works with both DQN, PPO and  A2C agents.
     
     Args:
         env: Environment
-        agent: Agent (DQN or PPO)
+        agent: Agent (DQN, A2C, PPo)
         build_ids: List of build IDs to evaluate on. If None, random builds are selected.
         num_builds: Number of builds to evaluate on if build_ids is None.
         
     Returns:
         Dictionary of evaluation metrics.
     """
-    # Select builds to evaluate on (same as your evaluate_dqn function)
+    # Select builds to evaluate on
     if build_ids is None:
         builds_with_failures = []
         for build_id, df in env.build_data.items():
@@ -273,7 +273,6 @@ def evaluate_agent(env, agent, build_ids=None, num_builds=10):
         'avg_improvement': avg_improvement,
         'evaluated_builds': build_ids
     }
-
 def visualize_results(training_metrics, save_dir='figures'):
     """
     Visualize the results of training.
