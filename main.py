@@ -27,7 +27,16 @@ def tr_torrent(args):
 
 def learn(args):
     if args.reinforcement_learning:
-        ExperimentsService.run_rl_learning()
+        # Import the RL module
+        from src.python.services.rl_learn import run_reinforcement_learning
+        # Run RL learning with all relevant parameters
+        run_reinforcement_learning(
+            folder_name=args.folder_name,
+            output_path=args.output_path,
+            test_count=args.test_count,
+            agent_type=args.agent_type,
+            num_episodes=args.episodes,
+        )
     elif args.ranking_models == "best":
         ExperimentsService.run_best_ranker_experiments(args)
     elif args.ranking_models == "all":
@@ -195,11 +204,34 @@ def main():
         choices=[e.name for e in Experiment],
         required=False,
     )
+    
+    # Add reinforcement learning arguments
     learn_parser.add_argument(
         "--reinforcement-learning",
         help="Use a Reinforcement Learning method",
         action="store_true",
         default=False,
+    )
+    learn_parser.add_argument(
+        "--folder-name",
+        help="Dataset folder name to use with reinforcement learning",
+        type=str,
+        required=False,
+    )
+    learn_parser.add_argument(
+        "--episodes",
+        help="Number of episodes for reinforcement learning training",
+        type=int,
+        default=1000,
+        required=False,
+    )
+    learn_parser.add_argument(
+        "--agent-type",
+        help="Type of reinforcement learning agent to use",
+        type=str,
+        choices=["dqn", "ppo", "a2c"],
+        default="dqn",
+        required=False,
     )
 
     hypopt_parser.set_defaults(func=hypopt)

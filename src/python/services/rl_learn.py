@@ -5,10 +5,11 @@ import random
 import torch
 import time
 import matplotlib.pyplot as plt
-from dqn import DQNNetwork, DQNAgent
-from env import TestPrioritizationEnv, FixedTestPrioritizationEnv, ListwiseTestPrioritizationEnv, PairwiseTestPrioritizationEnv, PointwiseTestPrioritizationEnv
-from rl_eval import visualize_build_learning, evaluate_agent, visualize_results, analyze_agent_behavior
-from ppo import PPOAgent
+from pathlib import Path
+from .dqn import DQNNetwork, DQNAgent
+from .env import TestPrioritizationEnv, FixedTestPrioritizationEnv, ListwiseTestPrioritizationEnv, PairwiseTestPrioritizationEnv, PointwiseTestPrioritizationEnv
+from .rl_eval import visualize_build_learning, evaluate_agent, visualize_results, analyze_agent_behavior
+from .ppo import PPOAgent
 
 def select_and_print_features(build_data, prefixes=["REC", "TES_PRO", "TES_COM"]):
     """
@@ -172,7 +173,7 @@ def train_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_frequency
         
         # Evaluate the agent
         if episode % eval_frequency == 0 or episode == num_episodes - 1:
-            eval_results = evaluate_dqn(env, agent, list(env.build_data.keys())[:10])
+            eval_results = evaluate_agent(env, agent, list(env.build_data.keys())[:10])
             avg_apfd = eval_results['avg_apfd']
             avg_improvement = eval_results['avg_improvement']
             eval_apfds.append(avg_apfd)
@@ -258,108 +259,6 @@ def fix_verdict_types(build_data, fail_value=0):
             print(f"After conversion: Build {build_id} has {failures}/{len(df)} failures")
     
     return build_data
-
-# Main function to run the fixed version
-def run_fixed_test_prioritization():
-    # Parameters
-    data_path = "/Users/sanjeev/TCP-CI/TCP-CI-dataset/datasets/Angel-ML@angel/dataset.csv"  # Replace with your actual data path
-    fail_value = 0  # 0 indicates failure in your dataset
-    pass_values = [1, 2]  # 1 and 2 indicate passing tests
-    num_episodes = 1000
-    
-    # Step 1: Load and preprocess data
-    print("Loading and preprocessing data...")
-    df = pd.read_csv(data_path)
-    
-    # Add explicit verdict type conversion to ensure numeric comparison works
-    if 'Verdict' in df.columns and df['Verdict'].dtype == 'object':
-        print(f"Converting Verdict column from {df['Verdict'].dtype} to numeric")
-        df['Verdict'] = pd.to_numeric(df['Verdict'], errors='coerce')
-    
-    # Organize data by build
-    build_data = {}
-    for build_id, group in df.groupby('Build'):
-        build_data[build_id] = group.reset_index(drop=True)
-    
-    # Step 2: Apply fixes to ensure verdict types are correct
-    build_data = fix_verdict_types(build_data, fail_value)
-    
-    # Step 3: Create the fixed environment
-    selected_features = select_and_print_features(build_data, prefixes=["REC", "TES_PRO", "TES_COM"])
-
-    # Step 4: Create the fixed environment with selected features
-    env = FixedTestPrioritizationEnv(
-        build_data=build_data,
-        feature_columns=selected_features,
-        fail_value=fail_value,
-        pass_values=pass_values
-    )
-    
-    # Step 4: Initialize the DQN agent
-    # Use a build with failures for sample state
-    sample_state = env.reset()
-    state_tensor = np.concatenate([
-        sample_state["test_features"].reshape(-1),
-        sample_state["available_mask"]
-    ])
-    state_size = state_tensor.shape[0]
-    
-    agent = DQNAgent(
-        state_size=state_size,
-        action_size=env.max_tests,
-        hidden_dim=128,
-        learning_rate=0.001,
-        gamma=0.99,
-        epsilon=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.995
-    )
-    
-    # Create directories for results
-    os.makedirs('models', exist_ok=True)
-    os.makedirs('figures', exist_ok=True)
-    
-    # Step 5: Train the agent using ONLY builds with failures
-    print(f"Training the agent for {num_episodes} episodes on builds with failures...")
-    training_metrics = train_dqn(
-        env=env,
-        agent=agent,
-        num_episodes=num_episodes,
-        update_frequency=10,
-        eval_frequency=50,
-        save_dir='models'
-    )
-    
-    # Step 6: Visualize the results
-    print("Visualizing results...")
-    visualize_results(training_metrics, save_dir='figures')
-    
-    # Step 7: Evaluate on builds with failures
-    print("Evaluating the agent on builds with failures...")
-    # Take a subset for evaluation (max 10 builds)
-    builds_with_failures = []
-    for build_id, df in env.build_data.items():
-        if 'Verdict' in df.columns:
-            failures = sum(1 for _, row in df.iterrows() if env.is_test_failed(row['Verdict']))
-            if failures > 0:
-                builds_with_failures.append(build_id)
-
-    # Use random sampling to avoid problematic builds
-    if builds_with_failures:
-        eval_builds = random.sample(builds_with_failures, min(10, len(builds_with_failures)))
-        results = evaluate_dqn(env, agent, build_ids=eval_builds)
-        
-        print("\nEvaluation Results on Builds with Failures:")
-        print(f"Average APFD: {results['avg_apfd']:.4f}")
-        print(f"Average Improvement: {results['avg_improvement']:.4f}")
-    else:
-        print("No builds with failures found for evaluation.")
-    
-    # Save the agent
-    agent.save('models/dqn_1000.pt')
-    print("Saved final model to models/fixed_dqn_agent.pt")
-    
-    return env, agent, results
 
 # Below are for pairwise, pointwise, and listwise (Above training functions are deprecated)
 
@@ -472,7 +371,7 @@ def train_listwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
             # Use up to 10 builds with failures for evaluation
             eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
             if eval_builds:
-                eval_results = evaluate_dqn(env, agent, build_ids=eval_builds)
+                eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
                 avg_apfd = eval_results['avg_apfd']
                 avg_improvement = eval_results['avg_improvement']
                 
@@ -610,7 +509,7 @@ def train_pairwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
                         builds_with_failures.append(b_id)
             
             eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
-            eval_results = evaluate_dqn(env, agent, build_ids=eval_builds)
+            eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
             avg_apfd = eval_results['avg_apfd']
             avg_improvement = eval_results['avg_improvement']
             
@@ -748,7 +647,7 @@ def train_pointwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval
                         builds_with_failures.append(b_id)
             
             eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
-            eval_results = evaluate_dqn(env, agent, build_ids=eval_builds)
+            eval_results = evaluate_agent(env, agent, build_ids=eval_builds)
             avg_apfd = eval_results['avg_apfd']
             avg_improvement = eval_results['avg_improvement']
             
@@ -1098,19 +997,27 @@ def train_a2c(env, agent, num_episodes=1000, eval_frequency=100,
         'final_env_metrics': env.get_build_metrics()
     }
 
-def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
+def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn", folder_name=None):
     """
     Run and compare test prioritization approaches with either DQN or PPO agents.
     
     Args:
         num_episodes: Number of episodes to train for
         agent_type: Type of agent to use ("dqn" or "ppo")
+        folder_name: Name of dataset folder to use
     
     Returns:
         Dictionary of results for each approach
     """
     # Parameters
-    data_path = "/Users/sanjeev/TCP-CI/TCP-CI-dataset/datasets/Angel-ML@angel/dataset.csv"
+    if folder_name:
+        data_path = f"./data/final_datasets/{folder_name}/dataset.csv"
+    else:
+        # Default path as fallback
+        data_path = "/Users/sanjeev/TCP-CI/TCP-CI-dataset/datasets/Angel-ML@angel/dataset.csv"
+    
+    print(f"Using dataset path: {data_path}")
+
     fail_value = 0
     pass_values = [1, 2]
     
@@ -1168,7 +1075,6 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
     
     # Initialize agent based on type
     if agent_type.lower() == "dqn":
-        from dqn import DQNAgent
         listwise_agent = DQNAgent(
             state_size=listwise_state_size,
             action_size=listwise_env.max_tests,
@@ -1193,7 +1099,6 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
             model_name=listwise_model_name
         )
     elif agent_type.lower() == "ppo":  # PPO
-        from ppo import PPOAgent
         listwise_agent = PPOAgent(
             state_size=listwise_state_size,
             action_size=listwise_env.max_tests,
@@ -1215,26 +1120,52 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
         )
     
     elif agent_type.lower() == "a2c":
-        from a2c import A2CAgent
-        listwise_agent = A2CAgent(
-            state_size=listwise_state_size,
-            action_size=listwise_env.max_tests,
-            hidden_dim=64,  # Smaller network for faster training
-            learning_rate=0.0007,
-            gamma=0.99
-        )
-        
-        # Train the agent
-        print(f"Training the listwise A2C agent for {num_episodes} episodes...")
-        listwise_model_name = f'listwise_a2c{episode_postfix}.zip'
-        listwise_metrics = train_a2c(  # Create this function similar to train_ppo
-            env=listwise_env,
-            agent=listwise_agent,
-            num_episodes=num_episodes,
-            eval_frequency=100,
-            save_dir=comparison_dir,
-            model_name=listwise_model_name
-        )
+        try:
+            from a2c import A2CAgent
+            listwise_agent = A2CAgent(
+                state_size=listwise_state_size,
+                action_size=listwise_env.max_tests,
+                hidden_dim=64,  # Smaller network for faster training
+                learning_rate=0.0007,
+                gamma=0.99
+            )
+            
+            # Train the agent
+            print(f"Training the listwise A2C agent for {num_episodes} episodes...")
+            listwise_model_name = f'listwise_a2c{episode_postfix}.zip'
+            listwise_metrics = train_a2c(
+                env=listwise_env,
+                agent=listwise_agent,
+                num_episodes=num_episodes,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=listwise_model_name
+            )
+        except ImportError:
+            print("A2C implementation not found. Using DQN instead.")
+            listwise_agent = DQNAgent(
+                state_size=listwise_state_size,
+                action_size=listwise_env.max_tests,
+                hidden_dim=128,
+                learning_rate=0.001,
+                gamma=0.99,
+                epsilon=1.0,
+                epsilon_min=0.01,
+                epsilon_decay=0.995
+            )
+            
+            # Train the agent
+            print(f"Training the listwise DQN agent for {num_episodes} episodes...")
+            listwise_model_name = f'listwise_dqn{episode_postfix}.pt'
+            listwise_metrics = train_listwise_dqn(
+                env=listwise_env,
+                agent=listwise_agent,
+                num_episodes=num_episodes,
+                update_frequency=10,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=listwise_model_name
+            )
     
     # Evaluate on builds with failures
     print(f"Evaluating the listwise {agent_type.upper()} agent on builds with failures...")
@@ -1255,11 +1186,269 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
         'results': listwise_results
     }
     
-    # Continue with pairwise and pointwise approaches in a similar way...
-    # (The pairwise and pointwise sections would be similar to the listwise section above,
-    # just with different environments and model names)
+    # =====================
+    # PAIRWISE APPROACH
+    # =====================
+    print("\n" + "="*50)
+    print(f"RUNNING PAIRWISE APPROACH WITH {agent_type.upper()}")
+    print("="*50)
     
-    # ... [Add code for pairwise and pointwise] ...
+    # Create pairwise environment
+    pairwise_env = PairwiseTestPrioritizationEnv(
+        build_data=build_data,
+        feature_columns=selected_features,
+        fail_value=fail_value,
+        pass_values=pass_values
+    )
+    
+    # Calculate state size
+    sample_state = pairwise_env.reset()
+    flattened_state = sample_state.reshape(-1)
+    pairwise_state_size = len(flattened_state)
+    
+    # Initialize agent based on type
+    if agent_type.lower() == "dqn":
+        pairwise_agent = DQNAgent(
+            state_size=pairwise_state_size,
+            action_size=pairwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.001,
+            gamma=0.99,
+            epsilon=1.0,
+            epsilon_min=0.01,
+            epsilon_decay=0.995
+        )
+        
+        # Train the agent
+        print(f"Training the pairwise DQN agent for {num_episodes} episodes...")
+        pairwise_model_name = f'pairwise_dqn{episode_postfix}.pt'
+        pairwise_metrics = train_pairwise_dqn(
+            env=pairwise_env,
+            agent=pairwise_agent,
+            num_episodes=num_episodes,
+            update_frequency=10,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=pairwise_model_name
+        )
+    elif agent_type.lower() == "ppo":
+        pairwise_agent = PPOAgent(
+            state_size=pairwise_state_size,
+            action_size=pairwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.0007,
+            gamma=0.99
+        )
+        
+        # Train the agent
+        print(f"Training the pairwise PPO agent for {num_episodes} episodes...")
+        pairwise_model_name = f'pairwise_ppo{episode_postfix}.zip'
+        pairwise_metrics = train_ppo(
+            env=pairwise_env,
+            agent=pairwise_agent,
+            num_episodes=num_episodes,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=pairwise_model_name
+        )
+    elif agent_type.lower() == "a2c":
+        try:
+            from a2c import A2CAgent
+            pairwise_agent = A2CAgent(
+                state_size=pairwise_state_size,
+                action_size=pairwise_env.max_tests,
+                hidden_dim=64,
+                learning_rate=0.0007,
+                gamma=0.99
+            )
+            
+            # Train the agent
+            print(f"Training the pairwise A2C agent for {num_episodes} episodes...")
+            pairwise_model_name = f'pairwise_a2c{episode_postfix}.zip'
+            pairwise_metrics = train_a2c(
+                env=pairwise_env,
+                agent=pairwise_agent,
+                num_episodes=num_episodes,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=pairwise_model_name
+            )
+        except ImportError:
+            print("A2C implementation not found. Using DQN instead.")
+            pairwise_agent = DQNAgent(
+                state_size=pairwise_state_size,
+                action_size=pairwise_env.max_tests,
+                hidden_dim=128,
+                learning_rate=0.001,
+                gamma=0.99,
+                epsilon=1.0,
+                epsilon_min=0.01,
+                epsilon_decay=0.995
+            )
+            
+            # Train the agent
+            print(f"Training the pairwise DQN agent for {num_episodes} episodes...")
+            pairwise_model_name = f'pairwise_dqn{episode_postfix}.pt'
+            pairwise_metrics = train_pairwise_dqn(
+                env=pairwise_env,
+                agent=pairwise_agent,
+                num_episodes=num_episodes,
+                update_frequency=10,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=pairwise_model_name
+            )
+    
+    # Evaluate on builds with failures
+    print(f"Evaluating the pairwise {agent_type.upper()} agent on builds with failures...")
+    builds_with_failures = []
+    for build_id, df in pairwise_env.build_data.items():
+        if 'Verdict' in df.columns:
+            failures = sum(1 for _, row in df.iterrows() if pairwise_env.is_test_failed(row['Verdict']))
+            if failures > 0:
+                builds_with_failures.append(build_id)
+    
+    eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
+    pairwise_results = evaluate_agent(pairwise_env, pairwise_agent, build_ids=eval_builds)
+    
+    # Add to results
+    results['pairwise'] = {
+        'env': pairwise_env, 
+        'agent': pairwise_agent, 
+        'results': pairwise_results
+    }
+    
+    # =====================
+    # POINTWISE APPROACH
+    # =====================
+    print("\n" + "="*50)
+    print(f"RUNNING POINTWISE APPROACH WITH {agent_type.upper()}")
+    print("="*50)
+    
+    # Create pointwise environment
+    pointwise_env = PointwiseTestPrioritizationEnv(
+        build_data=build_data,
+        feature_columns=selected_features,
+        fail_value=fail_value,
+        pass_values=pass_values
+    )
+    
+    # Calculate state size
+    sample_state = pointwise_env.reset()
+    flattened_state = sample_state.reshape(-1)
+    pointwise_state_size = len(flattened_state)
+    
+    # Initialize agent based on type
+    if agent_type.lower() == "dqn":
+        pointwise_agent = DQNAgent(
+            state_size=pointwise_state_size,
+            action_size=pointwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.001,
+            gamma=0.99,
+            epsilon=1.0,
+            epsilon_min=0.01,
+            epsilon_decay=0.995
+        )
+        
+        # Train the agent
+        print(f"Training the pointwise DQN agent for {num_episodes} episodes...")
+        pointwise_model_name = f'pointwise_dqn{episode_postfix}.pt'
+        pointwise_metrics = train_pointwise_dqn(
+            env=pointwise_env,
+            agent=pointwise_agent,
+            num_episodes=num_episodes,
+            update_frequency=10,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=pointwise_model_name
+        )
+    elif agent_type.lower() == "ppo":
+        pointwise_agent = PPOAgent(
+            state_size=pointwise_state_size,
+            action_size=pointwise_env.max_tests,
+            hidden_dim=128,
+            learning_rate=0.0007,
+            gamma=0.99
+        )
+        
+        # Train the agent
+        print(f"Training the pointwise PPO agent for {num_episodes} episodes...")
+        pointwise_model_name = f'pointwise_ppo{episode_postfix}.zip'
+        pointwise_metrics = train_ppo(
+            env=pointwise_env,
+            agent=pointwise_agent,
+            num_episodes=num_episodes,
+            eval_frequency=100,
+            save_dir=comparison_dir,
+            model_name=pointwise_model_name
+        )
+    elif agent_type.lower() == "a2c":
+        try:
+            from a2c import A2CAgent
+            pointwise_agent = A2CAgent(
+                state_size=pointwise_state_size,
+                action_size=pointwise_env.max_tests,
+                hidden_dim=64,
+                learning_rate=0.0007,
+                gamma=0.99
+            )
+            
+            # Train the agent
+            print(f"Training the pointwise A2C agent for {num_episodes} episodes...")
+            pointwise_model_name = f'pointwise_a2c{episode_postfix}.zip'
+            pointwise_metrics = train_a2c(
+                env=pointwise_env,
+                agent=pointwise_agent,
+                num_episodes=num_episodes,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=pointwise_model_name
+            )
+        except ImportError:
+            print("A2C implementation not found. Using DQN instead.")
+            pointwise_agent = DQNAgent(
+                state_size=pointwise_state_size,
+                action_size=pointwise_env.max_tests,
+                hidden_dim=128,
+                learning_rate=0.001,
+                gamma=0.99,
+                epsilon=1.0,
+                epsilon_min=0.01,
+                epsilon_decay=0.995
+            )
+            
+            # Train the agent
+            print(f"Training the pointwise DQN agent for {num_episodes} episodes...")
+            pointwise_model_name = f'pointwise_dqn{episode_postfix}.pt'
+            pointwise_metrics = train_pointwise_dqn(
+                env=pointwise_env,
+                agent=pointwise_agent,
+                num_episodes=num_episodes,
+                update_frequency=10,
+                eval_frequency=100,
+                save_dir=comparison_dir,
+                model_name=pointwise_model_name
+            )
+    
+    # Evaluate on builds with failures
+    print(f"Evaluating the pointwise {agent_type.upper()} agent on builds with failures...")
+    builds_with_failures = []
+    for build_id, df in pointwise_env.build_data.items():
+        if 'Verdict' in df.columns:
+            failures = sum(1 for _, row in df.iterrows() if pointwise_env.is_test_failed(row['Verdict']))
+            if failures > 0:
+                builds_with_failures.append(build_id)
+    
+    eval_builds = builds_with_failures[:min(10, len(builds_with_failures))]
+    pointwise_results = evaluate_agent(pointwise_env, pointwise_agent, build_ids=eval_builds)
+    
+    # Add to results
+    results['pointwise'] = {
+        'env': pointwise_env, 
+        'agent': pointwise_agent, 
+        'results': pointwise_results
+    }
     
     # =====================
     # COMPARE APPROACHES
@@ -1313,6 +1502,38 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn"):
     
     return results
 
+def run_reinforcement_learning(folder_name, output_path, test_count=50, agent_type="dqn", num_episodes=1000):
+    """
+    Main function to run reinforcement learning for test prioritization.
+    
+    Args:
+        folder_name: Name of the dataset folder
+        output_path: Path to save results
+        test_count: Number of builds to test
+        agent_type: Type of RL agent to use (dqn, ppo, a2c)
+        num_episodes: Number of training episodes
+    """
+    # Convert output_path to string if it's a Path object (comes from argparse)
+    if isinstance(output_path, Path):
+        output_path = str(output_path)
+    
+    print(f"\n{'='*80}\nRunning Reinforcement Learning for Test Prioritization\n{'='*80}")
+    print(f"Dataset: {folder_name}")
+    print(f"Output path: {output_path}")
+    print(f"Agent type: {agent_type}")
+    print(f"Test count: {test_count}")
+    print(f"Training episodes: {num_episodes}")
+    
+    # Run the comprehensive function that implements all three approaches
+    results = run_all_test_prioritization_approaches(
+        num_episodes=num_episodes,
+        agent_type=agent_type,
+        folder_name=folder_name
+    )
+    
+    print(f"\nReinforcement learning completed for {folder_name} with all three approaches.")
+    return results
+
 if __name__ == "__main__":
     import argparse
     
@@ -1321,13 +1542,16 @@ if __name__ == "__main__":
                         help='Agent type to use (dqn or or ppo or a2c)')
     parser.add_argument('--episodes', type=int, default=1000,
                         help='Number of episodes to train for')
+    parser.add_argument('--folder', type=str, required=True,
+                        help='Dataset folder name (required)')
     
     args = parser.parse_args()
     
     # Run the experiments with the specified agent type
     results = run_all_test_prioritization_approaches(
         num_episodes=args.episodes,
-        agent_type=args.agent
+        agent_type=args.agent,  # Added the missing comma here
+        folder_name=args.folder
     )
     
-    print(f"\nExperiment completed with {args.agent.upper()} agent.")
+    print(f"\nExperiment completed with {args.agent.upper()} agent on dataset from {args.folder}")
