@@ -1,6 +1,4 @@
 .ipynb_checkpoints
-*.csv
-*.png
 *.udb
 *.sh
 __pycache__
