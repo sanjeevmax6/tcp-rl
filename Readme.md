@@ -6,8 +6,8 @@ _Enhancing test case prioritization in Continuous Integration contexts through r
 
 This project extends the work on scalable and accurate test case prioritization in Continuous Integration (CI) contexts by incorporating reinforcement learning (RL) techniques. While traditional approaches rely on heuristics or machine learning ranking models, this reinforcement learning approach enables more dynamic and adaptive prioritization strategies that can better identify fault-revealing test cases early in the test execution sequence.
 
-![Dataset preparation](https://github.com/YourUsername/TCP-RL/raw/main/figures/dataset_processing.png)
-![TCP-RL Framework](https://github.com/YourUsername/TCP-RL/raw/main/figures/methodology.png)
+![Dataset preparation](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/dataset_processing.png)
+![TCP-RL Framework](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/methodology.png)
 
 ## Table of Contents
 
