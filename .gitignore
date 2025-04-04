@@ -2,7 +2,6 @@
 *.csv
 *.png
 *.udb
-*.txt
 *.sh
 __pycache__
 .vscode
