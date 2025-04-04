@@ -18,3 +18,4 @@ run_commands.sh
 .python-version
 src/python/services/models/
 src/python/services/figures/
+environment.yaml
