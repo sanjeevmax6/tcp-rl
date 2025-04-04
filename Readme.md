@@ -185,6 +185,17 @@ Results are saved in the following directories:
 - Models: `models/`
 - Visualizations: `figures/`
 
+## Experimental Results Visualization (Baslines vs RL best performing environment & agent)
+
+| Project | CA (Coordinate Ascent) | LM (LambdaMART) | MT (MART) | RL (Best Performing) |
+|---------|------------------------|-----------------|-----------|----------------------|
+| Angel-ML@angel | 0.53 | 0.82 | 0.68 | 0.54 (Pairwise DQN) |
+| apache@airavata | 0.56 | 0.62 | 0.74 | 0.9167 (Pairwise PPO) |
+| apache@curator  | 0.52 | 0.52 | 0.38 | 0.5138 (Listwise DQN) |
+
+## Experimetal Conclusion & Continuation of Experimentation
+The results clearly indicate a bigger bias to repositories. The RL agent is able to perform better with apache@airvata, but not with the other repositories. According to theoritical references, DQN is the better choice. Hence, further experiments with this study is going to be improving and generalizing the model. In addition to this experimentation will also be conducted to figure out the cause for bias towards certain repositories, and reasons for reduced performance.
+
 ## Original Work
 
 This project extends the work on "Scalable and Accurate Test Case Prioritization in Continuous Integration Contexts" by Saboor Yaraghi, et al. The original work is available at: [10.1109/TSE.2022.3184842](https://doi.org/10.1109/TSE.2022.3184842)

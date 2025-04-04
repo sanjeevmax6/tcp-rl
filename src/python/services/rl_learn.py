@@ -1022,7 +1022,7 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn", 
     pass_values = [1, 2]
     
     # Add episode and agent type to postfixes
-    episode_postfix = f"_{num_episodes}ep_{agent_type}"
+    episode_postfix = f"_{folder_name}_{num_episodes}ep_{agent_type}"
     comparison_dir = f'models/comparison{episode_postfix}'
     figures_dir = f'figures/comparison{episode_postfix}'
     
