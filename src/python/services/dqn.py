@@ -192,7 +192,8 @@ class DQNAgent:
             epsilon = self.epsilon
             
         # Choose random action with probability epsilon
-        if np.random.rand() <= epsilon:
+        r = np.random.rand()
+        if r <= self.epsilon:
             # Handle different environment types
             if isinstance(state, np.ndarray):
                 # For matrix/vector state (listwise/pointwise)
@@ -305,10 +306,6 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
-        # Decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
     
     def save(self, path):
         """

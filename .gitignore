@@ -12,7 +12,6 @@ TCP-CI-dataset.tar.gz
 docs/
 TCP-CI-dataset/
 travis-torrent/
-*.zip
 run_commands.sh
 .DS_Store
 .python-version

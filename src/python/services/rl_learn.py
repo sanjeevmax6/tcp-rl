@@ -326,6 +326,11 @@ def train_listwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
             # Update target network
             if episode % update_frequency == 0 and done:
                 agent.update_target_network()
+
+            epsilon_step = (1.0 - agent.epsilon_min) / 500
+            # Decay epsilon
+            if agent.epsilon > agent.epsilon_min:
+                agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
         
         # Get build metrics
         build_id = info['build_id']
@@ -352,11 +357,11 @@ def train_listwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
         build_improvement_history[build_id].append(improvement)
         
         # Print progress
-        if episode % 10 == 0:
-            elapsed = time.time() - start_time
-            print(f"Episode {episode}/{num_episodes}, APFD: {apfd:.4f}, "
-                  f"Improvement: {improvement:.4f}, Epsilon: {agent.epsilon:.4f}, "
-                  f"Time: {elapsed:.1f}s")
+        # if episode % 10 == 0:
+        #     elapsed = time.time() - start_time
+        #     print(f"Episode {episode}/{num_episodes}, APFD: {apfd:.4f}, "
+        #           f"Improvement: {improvement:.4f}, Epsilon: {agent.epsilon:.4f}, "
+        #           f"Time: {elapsed:.1f}s")
         
         # Evaluate the agent
         if episode % eval_frequency == 0 or episode == num_episodes - 1:
@@ -466,6 +471,11 @@ def train_pairwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
             # Update target network
             if episode % update_frequency == 0 and done:
                 agent.update_target_network()
+            
+            epsilon_step = (1.0 - agent.epsilon_min) / 500
+            # Decay epsilon
+            if agent.epsilon > agent.epsilon_min:
+                agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
         
         # Get build metrics
         build_id = info['build_id']
@@ -604,6 +614,11 @@ def train_pointwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval
             # Update target network
             if episode % update_frequency == 0 and done:
                 agent.update_target_network()
+
+            epsilon_step = (1.0 - agent.epsilon_min) / 500
+            # Decay epsilon
+            if agent.epsilon > agent.epsilon_min:
+                agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
         
         # Get build metrics
         build_id = info['build_id']
@@ -1082,7 +1097,7 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn", 
             learning_rate=0.001,
             gamma=0.99,
             epsilon=1.0,
-            epsilon_min=0.01,
+            epsilon_min=0.0001,
             epsilon_decay=0.995
         )
         
