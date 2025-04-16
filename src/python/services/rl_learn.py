@@ -10,6 +10,9 @@ from .dqn import DQNNetwork, DQNAgent
 from .env import TestPrioritizationEnv, FixedTestPrioritizationEnv, ListwiseTestPrioritizationEnv, PairwiseTestPrioritizationEnv, PointwiseTestPrioritizationEnv
 from .rl_eval import visualize_build_learning, evaluate_agent, visualize_results, analyze_agent_behavior
 from .ppo import PPOAgent
+from . import globals
+from .dash_display import init_dashboard 
+import random
 
 def select_and_print_features(build_data, prefixes=["REC", "TES_PRO", "TES_COM"]):
     """
@@ -332,6 +335,12 @@ def train_listwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
             if agent.epsilon > agent.epsilon_min:
                 agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
         
+        globals.latest_order = env.selected_tests
+        globals.episode_number = episode
+        globals.original_order = env.optimal_order
+        globals.failure_array = env.failure_array
+        globals.subscript_env = "Listwise"
+
         # Get build metrics
         build_id = info['build_id']
         episode_build_ids.append(build_id) 
@@ -447,6 +456,7 @@ def train_pairwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
     for episode in range(num_episodes):
         # Reset environment
         state = env.reset()
+        globals.original_order = env.test_cases
         build_id = env.current_build
         done = False
         episode_reward = 0
@@ -476,6 +486,15 @@ def train_pairwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
             # Decay epsilon
             if agent.epsilon > agent.epsilon_min:
                 agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
+        
+        # globals.latest_order = env.sorted_test_cases_vector
+        # globals.episode_number = episode
+        # # globals.original_order = env.test_cases
+        # # globals.failure_array = env.failure_array
+        # globals.subscript_env = "Pairwise"
+        # print("Current Pair", env.current_pair)
+        # print("Test Cases", env.test_cases)
+        # print("Sorted Test Cases Vector", env.sorted_test_cases_vector)
         
         # Get build metrics
         build_id = info['build_id']
@@ -619,6 +638,12 @@ def train_pointwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval
             # Decay epsilon
             if agent.epsilon > agent.epsilon_min:
                 agent.epsilon = max(agent.epsilon_min, agent.epsilon - epsilon_step)
+        
+        # globals.latest_order = env.selected_tests
+        # globals.episode_number = episode
+        # globals.original_order = env.optimal_order
+        # globals.failure_array = env.failure_array
+        # globals.subscript_env = "Listwise"
         
         # Get build metrics
         build_id = info['build_id']
@@ -1024,6 +1049,10 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn", 
     Returns:
         Dictionary of results for each approach
     """
+    
+    # Initializing the dash dashbord
+    init_dashboard()
+
     # Parameters
     if folder_name:
         data_path = f"./data/final_datasets/{folder_name}/dataset.csv"
@@ -1074,7 +1103,7 @@ def run_all_test_prioritization_approaches(num_episodes=1000, agent_type="dqn", 
     print("\n" + "="*50)
     print(f"RUNNING LISTWISE APPROACH WITH {agent_type.upper()}")
     print("="*50)
-    
+
     # Create listwise environment
     listwise_env = ListwiseTestPrioritizationEnv(
         build_data=build_data,
@@ -1561,7 +1590,7 @@ if __name__ == "__main__":
                         help='Dataset folder name (required)')
     
     args = parser.parse_args()
-    
+
     # Run the experiments with the specified agent type
     results = run_all_test_prioritization_approaches(
         num_episodes=args.episodes,

@@ -551,6 +551,7 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         self.original_test_order = None
         self.build_metrics = {}
         self.optimal_order = None
+        self.failure_array = None
         self.padding_value = -1
         
     def is_test_failed(self, verdict):
@@ -569,7 +570,10 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         test_cases['IsFailure'] = test_cases['Verdict'].apply(self.is_test_failed)
         
         # Sort by IsFailure (True first, which sorts failures to the top)
-        sorted_tests = test_cases.sort_values(by='IsFailure', ascending=False)
+        sorted_tests = test_cases.sort_values(by='IsFailure')
+
+        self.failure_array = sorted_tests['IsFailure'].astype(int).tolist()
+
         return list(sorted_tests.index)
     
     def reset(self, build_id=None):
@@ -633,7 +637,7 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         return np.array(features, dtype=np.float32)
     
     def _calculate_reward(self, test_case_index):
-        """Calculate reward based on optimal test ordering"""
+        """Calculate reward based on optimal test ordering and execution time"""
         if test_case_index >= len(self.test_data) or self.selected_tests.count(test_case_index) > 0:
             return 0  # Invalid action
         
@@ -648,15 +652,39 @@ class ListwiseTestPrioritizationEnv(gym.Env):
         normalized_optimal_rank = optimal_rank / total_tests
         normalized_assigned_rank = assigned_rank / total_tests
         
-        # Reward is better when assigned rank is closer to optimal rank
-        reward = 1 - (normalized_assigned_rank - normalized_optimal_rank)**2
+        # Base reward is better when assigned rank is closer to optimal rank
+        base_reward = 1 - (normalized_assigned_rank - normalized_optimal_rank)**2
         
-        # Additional reward for selecting failing tests early
-        verdict = self.test_data.iloc[test_case_index]['Verdict']
+        # Get test verdict and duration
+        test_info = self.test_data.iloc[test_case_index]
+        verdict = test_info['Verdict']
+        
+        # Get test duration (default to 1.0 if not available)
+        duration = test_info.get('Duration', test_info.get('REC_RecentAvgExeTime', 1.0))
+        if pd.isna(duration) or duration <= 0:
+            duration = 1.0
+        
+        # Normalize duration across all tests in the build
+        all_durations = self.test_data['Duration'].dropna()
+        if len(all_durations) > 0:
+            max_duration = max(all_durations.max(), 1.0)
+            normalized_duration = duration / max_duration
+        else:
+            normalized_duration = 1.0
+        
+        # Duration factor - higher reward for faster tests (lower duration)
+        duration_factor = 1.0 - normalized_duration
+        
+        # Position factor - higher reward for earlier positions
+        position_factor = 1.0 - (assigned_rank / total_tests)
+        
+        # Final reward calculation
         if self.is_test_failed(verdict):
-            # Position factor - higher reward for earlier positions
-            position_factor = 1.0 - (assigned_rank / total_tests)
-            reward += 2.0 * position_factor
+            # For failing tests: heavily prioritize early detection, then consider speed
+            reward = base_reward + (3.0 * position_factor) + (duration_factor * 0.5)
+        else:
+            # For passing tests: prioritize speed more significantly
+            reward = base_reward + (duration_factor * 1.5)
         
         return reward
     
@@ -1202,16 +1230,57 @@ class PointwiseTestPrioritizationEnv(gym.Env):
         return observation, reward, done, {'build_id': self.current_build}
     
     def _calculate_reward(self, test_idx, priority):
-        """Calculate reward based on whether the priority reflects failure importance"""
+        """Calculate reward based on test failure importance and execution time"""
         # Get verdict
         verdict = self.test_data.iloc[test_idx]['Verdict']
         is_failed = self.is_test_failed(verdict)
         
-        # For failing tests, priority should be high
-        if is_failed:
-            return priority  # Reward is higher for higher priority
+        # Get execution time (check both Duration and REC_RecentAvgExeTime)
+        execution_time = self.test_data.iloc[test_idx].get('Duration', 
+                        self.test_data.iloc[test_idx].get('REC_RecentAvgExeTime', 1.0))
+        
+        # Handle NaN or zero values
+        if pd.isna(execution_time) or execution_time <= 0:
+            execution_time = 1.0
+        
+        # Normalize execution time across all tests in the build
+        all_times = []
+        for i in range(len(self.test_data)):
+            time_val = self.test_data.iloc[i].get('Duration', 
+                    self.test_data.iloc[i].get('REC_RecentAvgExeTime', 1.0))
+            if not pd.isna(time_val) and time_val > 0:
+                all_times.append(time_val)
+        
+        if all_times:
+            max_time = max(all_times)
+            normalized_time = execution_time / max_time
         else:
-            return 1.0 - priority  # Reward is higher for lower priority
+            normalized_time = 1.0
+        
+        # Speed factor (higher for faster tests)
+        speed_factor = 1.0 - normalized_time
+        
+        # Base reward calculation
+        if is_failed:
+            # For failing tests, priority should be high
+            base_reward = priority  # Reward is higher for higher priority
+            
+            # Add a small bonus for faster failing tests
+            # (still maintaining that failure detection is primary goal)
+            time_bonus = 0.2 * speed_factor
+            return base_reward + time_bonus
+        else:
+            # For passing tests, consider both priority and execution time
+            priority_reward = 1.0 - priority  # Reward is higher for lower priority
+            
+            # For passing tests, faster ones should have slightly higher priority
+            # This creates a gradient: failing tests > fast passing tests > slow passing tests
+            time_bonus = 0.4 * speed_factor
+            
+            # The final reward encourages:
+            # 1. Lower priority for passing tests (primary goal)
+            # 2. Slightly higher priority for faster passing tests (secondary goal)
+            return priority_reward + time_bonus * priority_reward
     
     def _calculate_metrics_for_order(self, test_order):
         """Calculate APFD and APFDC for a given test ordering"""
