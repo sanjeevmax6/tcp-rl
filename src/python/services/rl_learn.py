@@ -456,7 +456,7 @@ def train_pairwise_dqn(env, agent, num_episodes=1000, update_frequency=10, eval_
     for episode in range(num_episodes):
         # Reset environment
         state = env.reset()
-        globals.original_order = env.test_cases
+        # globals.original_order = env.test_cases
         build_id = env.current_build
         done = False
         episode_reward = 0

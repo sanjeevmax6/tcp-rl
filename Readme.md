@@ -8,7 +8,13 @@ _Enhancing test case prioritization in Continuous Integration contexts through r
 
 This project extends the work on scalable and accurate test case prioritization in Continuous Integration (CI) contexts by incorporating reinforcement learning (RL) techniques. While traditional approaches rely on heuristics or machine learning ranking models, this reinforcement learning approach enables more dynamic and adaptive prioritization strategies that can better identify fault-revealing test cases early in the test execution sequence.
 
-![Key Motivation](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/motivation_cover.png)
+![Poster](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/Poster.png)
+
+![Key Motivation 1](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/motivation_cover.png)
+
+![Key Motivation 2](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/kubernetes_cover_image.png)
+
+![Key Motivation 3](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/openxla_cover_image.png)
 
 ## Table of Contents
 
@@ -55,6 +61,8 @@ This project extends the work on scalable and accurate test case prioritization 
 
 ![Dataset preparation](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/dataset_processing.png)
 
+![TCP-RL Framework](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/Architecture.jpeg)
+
 For this project to run, the final datasets for 3 repositories is already prepared and resides in the 'data' folder. However if you prefer to generate the datasets from raw_datasets within the 'data' folder, you need to install Understand and Java first.
 
 ### Understand
@@ -84,8 +92,6 @@ Unlike typical projects, Understand does not provide its Python library in the w
 
 ### Java
 This project uses [RankLib](https://sourceforge.net/p/lemur/wiki/RankLib) for training and testing machine learning ranking models. RankLib is a library of learning-to-rank algorithms, and it is written in Java. Hence, this project requires Java for running training and testing experiments. This project is trained and tested on OpenJDK version `1.8.0_292` and `11.0.11`.
-
-![TCP-RL Framework](https://github.com/sanjeevmax6/TCP-RL/raw/main/figures/methodology.png)
 
 ## Project Structure
 
